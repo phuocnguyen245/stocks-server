@@ -7,7 +7,7 @@ import { Types } from 'mongoose'
 
 const message = {
   NOTFOUND: "Stock wasn't found",
-  DELETED: 'Stock has been deleted',
+  DELETED: 'Stock has been deleted'
 }
 
 class StocksController {
@@ -18,7 +18,7 @@ class StocksController {
       quantity: 0,
       purchasePrice: 0,
       status: 'Buy',
-      userId: new Types.ObjectId('657ec8a90ac6d9841f7c55cd'),
+      userId: new Types.ObjectId('657ec8a90ac6d9841f7c55cd')
     }
 
     if (currentStock) {
@@ -31,7 +31,7 @@ class StocksController {
       } else if (item === 'userId') {
         return (data = {
           ...data,
-          userId: new Types.ObjectId(body[item]) ?? data.userId,
+          userId: new Types.ObjectId(body[item]) ?? data.userId
         })
       }
       return (data = { ...data, [item]: Number(body[item] ?? 0) })
@@ -69,7 +69,7 @@ class StocksController {
   static update = async (req: Request, res: Response) => {
     const {
       body,
-      params: { id },
+      params: { id }
     } = req
 
     const foundStock = await StockService.getStockById(id)
@@ -92,6 +92,12 @@ class StocksController {
     }
     await StockService.removeStock(id)
     return new DELETED({ message: message.DELETED }).send(res)
+  }
+
+  static getCurrent = async (req: Request, res: Response) => {
+    const stocks = await StockService.getCurrentStock()
+
+    return new OK({ data: stocks }).send(res)
   }
 }
 
