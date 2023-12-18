@@ -1,0 +1,22 @@
+
+@url_dev = http://localhost:8100/api/v1
+
+### Get Stocks
+GET {{url_dev}}/stocks
+
+### Create Stock
+POST {{url_dev}}/stocks
+
+{
+  "code": "DIG",
+  "date": "12/12/2023",
+  "quantity": "100",
+  "purchasePrice": "30",
+}
+
+### Update Stock
+PUT  {{url_dev}}/stocks/657ecc4c0efe810e76827f75
+
+{
+  "code": "DIG1",
+}

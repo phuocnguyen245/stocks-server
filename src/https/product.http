@@ -1,0 +1,50 @@
+@url_dev = http://localhost:8080/api/v1
+
+### Create Product
+POST {{url_dev}}/product HTTP/1.1
+content-type: application/json
+x-api-key: f918f8fadb112e844cd95306b607d72f840873ceb84e3c3e55f9e4176fcde6516a1652dd0b168e7f719c66ba629f53e736f7b272bf4dc8dd913556954d8bc852
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NTAzZGRhZmFkZDBkNmMwZTQxYjhhOGQiLCJlbWFpbCI6IjFAZXhhbXBsZS5jb20iLCJpYXQiOjE2OTUwMTAwMTMsImV4cCI6MTY5NTE4MjgxM30.D85KQnsVs1bPco12DYpgEUjG_QY1ZN9QblS_Py7jLjw
+x-client-id: 6503ddafadd0d6c0e41b8a8d
+
+{
+  "product_name": "1231",
+  "product_thumb": "123",
+  "product_des": "123",
+  "product_price": 123,
+  "product_quantity": 123,
+  "product_shopId": "6503ddafadd0d6c0e41b8a8d",
+  "product_type": "Clothes",
+  "product_attributes": {
+      "brand": "red",
+      "size": "M",
+      "material":"silk"
+  }
+}
+
+### Get Product Draft by ShopId
+GET {{url_dev}}/product/draft HTTP/1.1
+content-type: application/json
+x-api-key: f918f8fadb112e844cd95306b607d72f840873ceb84e3c3e55f9e4176fcde6516a1652dd0b168e7f719c66ba629f53e736f7b272bf4dc8dd913556954d8bc852
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NTAzZGRhZmFkZDBkNmMwZTQxYjhhOGQiLCJlbWFpbCI6IjFAZXhhbXBsZS5jb20iLCJpYXQiOjE2OTUwMTAwMTMsImV4cCI6MTY5NTE4MjgxM30.D85KQnsVs1bPco12DYpgEUjG_QY1ZN9QblS_Py7jLjw
+x-client-id: 6503ddafadd0d6c0e41b8a8d
+
+### Get Product Published by ShopId
+GET {{url_dev}}/product/published HTTP/1.1
+content-type: application/json
+x-api-key: f918f8fadb112e844cd95306b607d72f840873ceb84e3c3e55f9e4176fcde6516a1652dd0b168e7f719c66ba629f53e736f7b272bf4dc8dd913556954d8bc852
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NTAzZGRhZmFkZDBkNmMwZTQxYjhhOGQiLCJlbWFpbCI6IjFAZXhhbXBsZS5jb20iLCJpYXQiOjE2OTUwMTAwMTMsImV4cCI6MTY5NTE4MjgxM30.D85KQnsVs1bPco12DYpgEUjG_QY1ZN9QblS_Py7jLjw
+x-client-id: 6503ddafadd0d6c0e41b8a8d
+
+### Publish product
+PUT {{url_dev}}/product/published/6507fe7c1ca013736e57ca3a HTTP/1.1
+content-type: application/json
+x-api-key: f918f8fadb112e844cd95306b607d72f840873ceb84e3c3e55f9e4176fcde6516a1652dd0b168e7f719c66ba629f53e736f7b272bf4dc8dd913556954d8bc852
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NTAzZGRhZmFkZDBkNmMwZTQxYjhhOGQiLCJlbWFpbCI6IjFAZXhhbXBsZS5jb20iLCJpYXQiOjE2OTUwMTAwMTMsImV4cCI6MTY5NTE4MjgxM30.D85KQnsVs1bPco12DYpgEUjG_QY1ZN9QblS_Py7jLjw
+x-client-id: 6503ddafadd0d6c0e41b8a8d
+
+### get list search
+GET {{url_dev}}/product/search?search=123 HTTP/1.1
+content-type: application/json
+x-api-key: f918f8fadb112e844cd95306b607d72f840873ceb84e3c3e55f9e4176fcde6516a1652dd0b168e7f719c66ba629f53e736f7b272bf4dc8dd913556954d8bc852
+
