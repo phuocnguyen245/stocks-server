@@ -1,15 +1,16 @@
 import compression from 'compression'
+import cors from 'cors'
+import dotenv from 'dotenv'
 import express, { NextFunction, Request, Response } from 'express'
 import { default as helmet } from 'helmet'
 import morgan from 'morgan'
 import { instanceMongodb } from './config/database.ts'
 import router from './routes/index.ts'
 const app = express()
-import dotenv from 'dotenv'
-
 instanceMongodb
 
 //init middleware
+app.use(cors())
 app.use(morgan('dev'))
 app.use(helmet())
 app.use(compression())
@@ -33,7 +34,7 @@ app.use((error: any, req: Request, res: Response, next: NextFunction) => {
     status: 'Error',
     code: statusCode,
     ...(error.subMessage && { subMessage: error.subMessage }),
-    message: error.message || 'Internal Server Error',
+    message: error.message || 'Internal Server Error'
   })
 })
 

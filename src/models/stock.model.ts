@@ -4,7 +4,7 @@ const { Schema } = mongoose
 
 const NAME = {
   DOCUMENT: 'Stock',
-  COLLECTION: 'Stocks',
+  COLLECTION: 'Stocks'
 }
 
 const StockSchema = new Schema<Stock>(
@@ -20,7 +20,7 @@ const StockSchema = new Schema<Stock>(
       type: String,
       enum: ['Buy', 'Sell'],
       default: 'Buy',
-      required: true,
+      required: true
     },
     // userId: {
     //   type: Schema.Types.ObjectId,
@@ -28,13 +28,16 @@ const StockSchema = new Schema<Stock>(
     // },
     isDeleted: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
   {
     timestamps: true,
-    collection: NAME.COLLECTION,
+    collection: NAME.COLLECTION
   }
 )
 
 export const Stocks = mongoose.model(NAME.DOCUMENT, StockSchema)
+
+console.log((30 * 200 + 22.5 * 300) / 500)
+console.log((30 + 22.5 + 22.5) / 3)

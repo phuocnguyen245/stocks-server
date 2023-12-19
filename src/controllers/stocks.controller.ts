@@ -3,7 +3,7 @@ import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
 import StockService from '../services/stocks.service.ts/index.ts'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { Stock } from '../types/types.js'
-import { Types } from 'mongoose'
+import { FilterQuery, Types } from 'mongoose'
 
 const message = {
   NOTFOUND: "Stock wasn't found",
@@ -41,8 +41,16 @@ class StocksController {
   }
 
   static getAll = async (req: Request, res: Response) => {
-    const stocks = await StockService.getAllStocks()
-    return new OK({ data: stocks }).send(res)
+    const { page, size } = req.params
+    const stocks = await StockService.getAllStocks({ page: Number(page), size: Number(size) })
+    return new OK({
+      data: {
+        data: stocks,
+        totalItems: stocks.length,
+        page,
+        size
+      }
+    }).send(res)
   }
 
   static getById = async (req: Request, res: Response) => {
@@ -97,7 +105,14 @@ class StocksController {
   static getCurrent = async (req: Request, res: Response) => {
     const stocks = await StockService.getCurrentStock()
 
-    return new OK({ data: stocks }).send(res)
+    return new OK({
+      data: {
+        data: stocks,
+        page: 1,
+        size: 10,
+        totalItems: stocks.length
+      }
+    }).send(res)
   }
 }
 
