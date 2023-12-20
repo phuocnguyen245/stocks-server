@@ -28,19 +28,26 @@ class StockService {
     if (foundCode) {
       return JSON.parse(foundCode)
     }
+    let remainingMilliseconds
     const now = new Date()
-    const currentHour = now.getHours()
-    const remainingMilliseconds = (18 - currentHour) * 60 * 60 * 1000
+    const currentHour = now.getHours() // Get the current hour (0-23)
+    if (currentHour < 18) {
+      remainingMilliseconds = (18 - currentHour) * 60 * 60 * 1000
+    } else {
+      remainingMilliseconds = (24 - currentHour + 18) * 60 * 60 * 1000
+    }
+
     try {
       const response = await axios.get(
         `https://eodhd.com/api/eod/${code}.VN?api_token=6581c09e24c079.86508753&fmt=json`
       )
+
       await this.redisHandler.save(code, JSON.stringify(response.data))
       await this.redisHandler.redis.expire(
         `stocks-${code}`,
         Math.round(remainingMilliseconds / 1000)
       )
-      return response
+      return response.data
     } catch (error) {
       throw new Error(error as string)
     }
@@ -144,10 +151,9 @@ class StockService {
   }
 
   static getStockStatistics = async (code: string) => {
-    const stock = await this.redisHandler.get(code)
+    const stock = (await this.getEndOfDayStock(code)) as EndOfDayStock[]
     if (stock) {
-      const parsedStock: EndOfDayStock[] = JSON.parse(stock)
-      const data = parsedStock.map((item) => [
+      const data = stock.map((item) => [
         dateStringToNumber(item.date),
         item.open,
         item.high,
