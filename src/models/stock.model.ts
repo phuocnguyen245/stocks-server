@@ -38,6 +38,3 @@ const StockSchema = new Schema<Stock>(
 )
 
 export const Stocks = mongoose.model(NAME.DOCUMENT, StockSchema)
-
-console.log((30 * 200 + 22.5 * 300) / 500)
-console.log((30 + 22.5 + 22.5) / 3)

@@ -4,7 +4,11 @@ import { asyncHandler } from '../../utils/helpers/asyncHandler.ts'
 const router = express.Router()
 
 router.get('/', asyncHandler(StocksController.getAll))
+
+router.get('/statistic/:code', asyncHandler(StocksController.getStatistic))
+
 router.get('/current', asyncHandler(StocksController.getCurrent))
+
 router.post('/', asyncHandler(StocksController.create))
 router.put('/:id', asyncHandler(StocksController.update))
 router.delete('/:id', asyncHandler(StocksController.remove))

@@ -4,7 +4,7 @@ const { Schema } = mongoose
 
 const NAME = {
   DOCUMENT: 'User',
-  COLLECTION: 'Users',
+  COLLECTION: 'Users'
 }
 
 const UserSchema = new Schema<User>(
@@ -13,16 +13,16 @@ const UserSchema = new Schema<User>(
     username: {
       type: String,
       required: true,
-      trim: true,
+      trim: true
     },
     password: {
       type: String,
-      required: true,
-    },
+      required: true
+    }
   },
   {
     timestamps: true,
-    collection: NAME.COLLECTION,
+    collection: NAME.COLLECTION
   }
 )
 

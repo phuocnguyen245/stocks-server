@@ -1,13 +1,14 @@
 import { Request, Response } from 'express'
+import { Types } from 'mongoose'
+import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
 import StockService from '../services/stocks.service.ts/index.ts'
-import { BadRequest, NotFound } from '../core/error.response.ts'
 import { Stock } from '../types/types.js'
-import { FilterQuery, Types } from 'mongoose'
 
 const message = {
   NOTFOUND: "Stock wasn't found",
-  DELETED: 'Stock has been deleted'
+  DELETED: 'Stock has been deleted',
+  MISSING_CODE: 'Missing code'
 }
 
 class StocksController {
@@ -43,6 +44,7 @@ class StocksController {
   static getAll = async (req: Request, res: Response) => {
     const { page, size } = req.params
     const stocks = await StockService.getAllStocks({ page: Number(page), size: Number(size) })
+
     return new OK({
       data: {
         data: stocks,
@@ -58,6 +60,7 @@ class StocksController {
     if (!id) {
       return new BadRequest('Id is missing')
     }
+
     const foundStock = await StockService.getStockById(id)
     if (!foundStock) {
       throw new NotFound(message.NOTFOUND)
@@ -71,6 +74,7 @@ class StocksController {
     const data = this.formatBody(body)
 
     const newStock = await StockService.createStock(data)
+
     return new CREATED({ data: newStock }).send(res)
   }
 
@@ -111,6 +115,20 @@ class StocksController {
         page: 1,
         size: 10,
         totalItems: stocks.length
+      }
+    }).send(res)
+  }
+
+  static getStatistic = async (req: Request, res: Response) => {
+    const { code } = req.params
+    if (!code) {
+      throw new BadRequest(message.MISSING_CODE)
+    }
+    const data = await StockService.getStockStatistics(code.toUpperCase())
+    return new OK({
+      data: {
+        data,
+        totalItems: data.length
       }
     }).send(res)
   }

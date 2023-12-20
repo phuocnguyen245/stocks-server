@@ -17,7 +17,6 @@ app.use(compression())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 dotenv.config()
-
 //router
 app.use('/api/v1', router)
 

@@ -1,6 +1,9 @@
 import { FilterQuery, Types } from 'mongoose'
 import { Stocks } from '../../models/stock.model.ts'
 import type { Stock } from '../../types/types.js'
+import axios from 'axios'
+import RedisHandler from '../../config/redis.ts'
+import { dateStringToNumber } from '../../utils/index.ts'
 
 interface PagePagination {
   page: number
@@ -8,8 +11,41 @@ interface PagePagination {
   sort?: keyof Stock
   orderBy?: 'asc' | 'desc'
 }
-
+interface EndOfDayStock {
+  date: string
+  open: number
+  high: number
+  low: number
+  close: number
+  adjusted_close: number
+  volume: number
+}
 class StockService {
+  static redisHandler = new RedisHandler()
+
+  static getEndOfDayStock = async (code: string) => {
+    const foundCode = await this.redisHandler.get(code)
+    if (foundCode) {
+      return JSON.parse(foundCode)
+    }
+    const now = new Date()
+    const currentHour = now.getHours()
+    const remainingMilliseconds = (18 - currentHour) * 60 * 60 * 1000
+    try {
+      const response = await axios.get(
+        `https://eodhd.com/api/eod/${code}.VN?api_token=6581c09e24c079.86508753&fmt=json`
+      )
+      await this.redisHandler.save(code, JSON.stringify(response.data))
+      await this.redisHandler.redis.expire(
+        `stocks-${code}`,
+        Math.round(remainingMilliseconds / 1000)
+      )
+      return response
+    } catch (error) {
+      throw new Error(error as string)
+    }
+  }
+
   static getAllStocks = async (pagination: PagePagination, filter?: FilterQuery<Stock>) => {
     const { page = 1, size = 10, sort = 'updatedAt', orderBy = 'asc' } = pagination
 
@@ -33,6 +69,7 @@ class StockService {
 
   static createStock = async (body: Stock) => {
     const data = (await Stocks.create(body)).toObject()
+    await this.getEndOfDayStock(data.code)
     return data
   }
 
@@ -55,7 +92,7 @@ class StockService {
   }
 
   static getCurrentStock = async () => {
-    return await Stocks.aggregate([
+    const currentStocks = await Stocks.aggregate([
       {
         $match: {
           isDeleted: false,
@@ -98,6 +135,29 @@ class StockService {
         }
       }
     ])
+    const stocks: string[] = []
+    currentStocks.forEach((item) => {
+      stocks.push(item.code)
+    })
+    await this.redisHandler.save('user', JSON.stringify(stocks))
+    return currentStocks
+  }
+
+  static getStockStatistics = async (code: string) => {
+    const stock = await this.redisHandler.get(code)
+    if (stock) {
+      const parsedStock: EndOfDayStock[] = JSON.parse(stock)
+      const data = parsedStock.map((item) => [
+        dateStringToNumber(item.date),
+        item.open,
+        item.high,
+        item.low,
+        item.close,
+        item.volume
+      ])
+      return data
+    }
+    return []
   }
 }
 
