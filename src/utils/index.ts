@@ -21,8 +21,13 @@ const dateStringToNumber = (dateString: string) => {
   const month = parseInt(dateParts[1], 10)
   const year = parseInt(dateParts[0], 10)
 
-  const date = new Date(year, month - 1, day)
+  const date = new Date(Date.UTC(year, month - 1, day))
 
-  return date.getTime()
+  const utcPlus7Offset = 7 * 60 * 60 * 1000
+
+  const utcPlus7Timestamp = date.getTime() + utcPlus7Offset
+
+  return utcPlus7Timestamp
 }
+
 export { pickKeysInObject, generateKey, dateStringToNumber }
