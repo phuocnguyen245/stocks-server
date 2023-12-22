@@ -4,6 +4,7 @@ import type { Stock } from '../../types/types.js'
 import axios from 'axios'
 import RedisHandler from '../../config/redis.ts'
 import { dateStringToNumber } from '../../utils/index.ts'
+import { BadRequest } from '../../core/error.response.ts'
 
 interface PagePagination {
   page: number
@@ -54,7 +55,7 @@ class StockService {
   }
 
   static getAllStocks = async (pagination: PagePagination, filter?: FilterQuery<Stock>) => {
-    const { page = 1, size = 10, sort = 'updatedAt', orderBy = 'asc' } = pagination
+    const { page = 1, size = 10, sort = 'createAt', orderBy = 'asc' } = pagination
 
     const defaultFilter: FilterQuery<Stock> = {
       isDeleted: false
@@ -75,9 +76,14 @@ class StockService {
   }
 
   static createStock = async (body: Stock) => {
-    const data = (await Stocks.create(body)).toObject()
-    await this.getEndOfDayStock(data.code)
-    return data
+    const response = await this.getEndOfDayStock(body.code)
+    if (response.length > 0) {
+      const data = (
+        await Stocks.create({ ...body, currentPrice: response[response.length - 1].close / 1000 })
+      ).toObject()
+      return data
+    }
+    throw new BadRequest('Error creating stock')
   }
 
   static updateStock = async (id: string, body: Stock) => {

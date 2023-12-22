@@ -97,7 +97,7 @@ class StocksController {
   }
 
   static remove = async (req: Request, res: Response) => {
-    const { id } = req.body
+    const { id } = req.params
     const foundStock = await StockService.getStockById(id)
     if (!foundStock) {
       throw new NotFound(message.NOTFOUND)
