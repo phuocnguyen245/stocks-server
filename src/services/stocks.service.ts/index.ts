@@ -1,10 +1,11 @@
 import { FilterQuery, Types } from 'mongoose'
 import { Stocks } from '../../models/stock.model.ts'
-import type { Stock } from '../../types/types.js'
+import type { CurrentStock, Stock } from '../../types/types.js'
 import axios from 'axios'
 import RedisHandler from '../../config/redis.ts'
 import { dateStringToNumber } from '../../utils/index.ts'
 import { BadRequest } from '../../core/error.response.ts'
+import CurrentStockService from '../currentStock.service.ts/index.ts'
 
 interface PagePagination {
   page: number
@@ -24,6 +25,11 @@ interface EndOfDayStock {
 class StockService {
   static redisHandler = new RedisHandler()
 
+  static getEndOfDayPrice = async (code: string) => {
+    const endOfDayStocks = await this.getEndOfDayStock(code)
+    const endOfDayPrice = endOfDayStocks[endOfDayStocks.length - 1].close / 1000
+    return endOfDayPrice
+  }
   static getEndOfDayStock = async (code: string) => {
     const foundCode = await this.redisHandler.get(code)
     if (foundCode) {
@@ -76,84 +82,36 @@ class StockService {
   }
 
   static createStock = async (body: Stock) => {
-    const response = await this.getEndOfDayStock(body.code)
-    if (response.length > 0) {
-      const data = (
-        await Stocks.create({ ...body, currentPrice: response[response.length - 1].close / 1000 })
-      ).toObject()
-      return data
+    const isBuy = body.status === 'Buy'
+    const endOfDayPrice = await this.getEndOfDayPrice(body.code)
+    await CurrentStockService.createOrUpdateCurrentStock(body, endOfDayPrice)
+
+    if (!isBuy) {
+      return (await Stocks.create({ ...body })).toObject()
     }
-    throw new BadRequest('Error creating stock')
+    if (endOfDayPrice > 0) {
+      return (await Stocks.create({ ...body, currentPrice: endOfDayPrice })).toObject()
+    }
   }
 
   static updateStock = async (id: string, body: Stock) => {
-    const data = await Stocks.findOneAndUpdate(
+    const stock = await Stocks.findOneAndUpdate(
       { _id: new Types.ObjectId(id) },
-      {
-        ...body
-      },
+      { ...body },
       { new: true }
     )
-
-    return data
+    const convertStock = stock?.toObject()
+    if (convertStock) {
+      const endOfDayPrice = await this.getEndOfDayPrice(convertStock.code)
+      await CurrentStockService.createOrUpdateCurrentStock(convertStock, endOfDayPrice)
+    }
+    return convertStock
   }
 
   static removeStock = async (id: string) => {
     return await Stocks.findByIdAndUpdate(new Types.ObjectId(id), {
       isDeleted: true
     })
-  }
-
-  static getCurrentStock = async () => {
-    const currentStocks = await Stocks.aggregate([
-      {
-        $match: {
-          isDeleted: false,
-          status: 'Buy'
-        }
-      },
-      {
-        $group: {
-          _id: '$code',
-          purchasePrice: {
-            $sum: {
-              $multiply: ['$purchasePrice', '$quantity']
-            }
-          },
-          quantity: {
-            $sum: '$quantity'
-          },
-          currentPrice: { $first: '$currentPrice' }
-        }
-      },
-      {
-        $addFields: {
-          ratio: {
-            $divide: [
-              { $subtract: ['$currentPrice', { $divide: ['$purchasePrice', '$quantity'] }] },
-              { $divide: ['$purchasePrice', '$quantity'] }
-            ]
-          }
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          code: '$_id',
-          purchasePrice: { $divide: ['$purchasePrice', '$quantity'] },
-          quantity: 1,
-          currentPrice: 1,
-          ratio: { $multiply: ['$ratio', 100] },
-          actualGain: { $multiply: ['$quantity', '$currentPrice'] }
-        }
-      }
-    ])
-    const stocks: string[] = []
-    currentStocks.forEach((item) => {
-      stocks.push(item.code)
-    })
-    await this.redisHandler.save('user', JSON.stringify(stocks))
-    return currentStocks
   }
 
   static getStockStatistics = async (code: string) => {
@@ -174,3 +132,50 @@ class StockService {
 }
 
 export default StockService
+
+// const currentStocks = await Stocks.aggregate([
+//   {
+//     $match: {
+//       isDeleted: false,
+//       status: 'Buy'
+//     }
+//   },
+//   {
+//     $group: {
+//       _id: '$code',
+//       purchasePrice: {
+//         $sum: {
+//           $multiply: ['$purchasePrice', '$quantity']
+//         }
+//       },
+//       quantity: {
+//         $sum: '$quantity'
+//       },
+//       currentPrice: { $first: '$currentPrice' }
+//     }
+//   },
+//   {
+//     $addFields: {
+//       ratio: {
+//         $divide: [
+//           { $subtract: ['$currentPrice', { $divide: ['$purchasePrice', '$quantity'] }] },
+//           { $divide: ['$purchasePrice', '$quantity'] }
+//         ]
+//       },
+//       purchasePrice: { $divide: ['$purchasePrice', '$quantity'] }
+//     }
+//   },
+//   {
+//     $project: {
+//       _id: 0,
+//       code: '$_id',
+//       purchasePrice: '$purchasePrice',
+//       quantity: 1,
+//       currentPrice: 1,
+//       ratio: { $multiply: ['$ratio', 100] },
+//       actualGain: {
+//         $multiply: [{ $subtract: ['$currentPrice', '$purchasePrice'] }, '$quantity']
+//       }
+//     }
+//   }
+// ])

@@ -15,7 +15,7 @@ const StockSchema = new Schema<Stock>(
     purchasePrice: Number,
     currentPrice: Number,
     ratio: Number,
-    actualGain: Number,
+    sellPrice: Number,
     status: {
       type: String,
       enum: ['Buy', 'Sell'],

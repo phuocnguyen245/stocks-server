@@ -18,6 +18,7 @@ class StocksController {
       date: '',
       quantity: 0,
       purchasePrice: 0,
+      sellPrice: 0,
       status: 'Buy',
       userId: new Types.ObjectId('657ec8a90ac6d9841f7c55cd')
     }
@@ -104,19 +105,6 @@ class StocksController {
     }
     await StockService.removeStock(id)
     return new DELETED({ message: message.DELETED }).send(res)
-  }
-
-  static getCurrent = async (req: Request, res: Response) => {
-    const stocks = await StockService.getCurrentStock()
-
-    return new OK({
-      data: {
-        data: stocks,
-        page: 1,
-        size: 10,
-        totalItems: stocks.length
-      }
-    }).send(res)
   }
 
   static getStatistic = async (req: Request, res: Response) => {

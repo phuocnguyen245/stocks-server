@@ -14,12 +14,22 @@ interface Stock {
   date: string
   quantity: number
   purchasePrice: number
+  sellPrice: number
   currentPrice?: number
   ratio?: number
-  actualGain?: number
   status: Status
   userId?: Types.ObjectId
   isDeleted?: boolean
 }
 
-export type { User, Stock, Status }
+interface CurrentStock {
+  code: string
+  average: number
+  quantity: number
+  currentPrice: number
+  ratio: number
+  actualGain?: number
+  userId?: Types.ObjectId
+}
+
+export type { User, Stock, CurrentStock, Status }
