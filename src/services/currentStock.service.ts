@@ -31,11 +31,7 @@ class CurrentStockService {
     return await CurrentStocks.findOneAndDelete({ code })
   }
 
-  static convertBodyToCreate = async (
-    stock: Stock,
-    endOfDayPrice: number,
-    isBuy: boolean
-  ): Promise<CurrentStock> => {
+  static convertBodyToCreate = async (stock: Stock, endOfDayPrice: number, isBuy: boolean) => {
     const { code, orderPrice, volume, status, _id } = stock
     const foundCurrentStock = await this.getCurrentStockByCode(code)
     let newVolume = 0
@@ -68,7 +64,7 @@ class CurrentStockService {
         marketPrice: endOfDayPrice,
         investedValue: Number(investedValue)
       }
-      return currentStock
+      return await CurrentStockService.updateCurrentStock(code, currentStock)
     }
 
     if (!isBuy) {
@@ -83,7 +79,7 @@ class CurrentStockService {
       ratio: Number(((endOfDayPrice - orderPrice) / orderPrice).toFixed(2)),
       investedValue: (endOfDayPrice - orderPrice) * volume
     }
-    return currentStock
+    return await CurrentStockService.createCurrentStock(currentStock)
   }
 
   static convertBodyToUpdate = async (

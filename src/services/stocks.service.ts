@@ -58,17 +58,16 @@ class StockService {
     pagination: PagePagination<Stock>,
     extraFilter?: FilterQuery<Stock>
   ) => {
-    const { page = 1, size = 10, sort, orderBy } = pagination
+    const { page, size, sort, orderBy } = pagination
 
     const filter: FilterQuery<Stock> = {
       isDeleted: false,
       ...extraFilter
     }
-    console.log(typeof sort)
 
     const data = await Stocks.find(filter)
-      .limit(page)
-      .skip(page * size)
+      .limit(page ?? 1)
+      .skip(page ?? 1 * size ?? 10)
       .sort({
         [`${sort ?? 'createAt'}`]: orderBy ?? 'asc'
       })
@@ -91,8 +90,7 @@ class StockService {
       stock = (await Stocks.create({ ...body })).toObject()
     }
 
-    const currentStock = await CurrentStockService.convertBodyToCreate(stock, endOfDayPrice, isBuy)
-    await CurrentStockService.createCurrentStock(currentStock)
+    await CurrentStockService.convertBodyToCreate(stock, endOfDayPrice, isBuy)
 
     return stock
   }
