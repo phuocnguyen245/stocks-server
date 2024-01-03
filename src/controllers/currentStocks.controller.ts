@@ -1,9 +1,10 @@
 import { Request, Response } from 'express'
-import CurrentStockService from '../services/currentStock.service.ts/index.ts'
+import CurrentStockService from '../services/currentStock.service.ts'
 import { DELETED, OK } from '../core/success.response.ts'
 
 const message = {
-  GET_ALL: 'Get all current stocks successfully'
+  GET_ALL: 'Get all current stocks successfully',
+  REMOVE: 'Remove current stock successfully'
 }
 
 class CurrentStockController {
@@ -17,7 +18,7 @@ class CurrentStockController {
   }
   static removeCurrentStock = async (req: Request, res: Response) => {
     await CurrentStockService.removeCurrentStock(req.params.code)
-    return new DELETED({ data: null, message: 'Remove current stock successfully' }).send(res)
+    return new DELETED({ data: null, message: message.REMOVE }).send(res)
   }
 }
 

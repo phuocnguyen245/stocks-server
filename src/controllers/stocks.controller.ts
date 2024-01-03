@@ -2,8 +2,8 @@ import { Request, Response } from 'express'
 import { Types } from 'mongoose'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
-import StockService from '../services/stocks.service.ts/index.ts'
-import { Stock } from '../types/types.js'
+import StockService from '../services/stocks.service.ts'
+import { OrderBy, Stock } from '../types/types.js'
 
 const message = {
   NOTFOUND: "Stock wasn't found",
@@ -16,8 +16,8 @@ class StocksController {
     let data: Stock = {
       code: '',
       date: '',
-      quantity: 0,
-      purchasePrice: 0,
+      volume: 0,
+      orderPrice: 0,
       sellPrice: 0,
       status: 'Buy',
       userId: new Types.ObjectId('657ec8a90ac6d9841f7c55cd')
@@ -43,8 +43,13 @@ class StocksController {
   }
 
   static getAll = async (req: Request, res: Response) => {
-    const { page, size } = req.params
-    const stocks = await StockService.getAllStocks({ page: Number(page), size: Number(size) })
+    const { page, size, sort, orderBy } = req.query
+    const stocks = await StockService.getAllStocks({
+      page: Number(page),
+      size: Number(size),
+      sort: String(sort) as keyof Stock,
+      orderBy: String(orderBy) as OrderBy
+    })
 
     return new OK({
       data: {

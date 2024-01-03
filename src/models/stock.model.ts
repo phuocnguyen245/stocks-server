@@ -11,16 +11,19 @@ const StockSchema = new Schema<Stock>(
   {
     code: String,
     date: String,
-    quantity: Number,
-    purchasePrice: Number,
-    currentPrice: Number,
-    ratio: Number,
+    volume: Number,
+    orderPrice: Number,
+    marketPrice: Number,
     sellPrice: Number,
     status: {
       type: String,
       enum: ['Buy', 'Sell'],
       default: 'Buy',
       required: true
+    },
+    ratio: {
+      type: Number,
+      default: 0
     },
     // userId: {
     //   type: Schema.Types.ObjectId,

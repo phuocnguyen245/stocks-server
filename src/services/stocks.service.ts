@@ -1,18 +1,11 @@
-import { FilterQuery, Types } from 'mongoose'
-import { Stocks } from '../../models/stock.model.ts'
-import type { CurrentStock, Stock } from '../../types/types.js'
 import axios from 'axios'
-import RedisHandler from '../../config/redis.ts'
-import { dateStringToNumber } from '../../utils/index.ts'
-import { BadRequest } from '../../core/error.response.ts'
-import CurrentStockService from '../currentStock.service.ts/index.ts'
+import { FilterQuery, Types } from 'mongoose'
+import RedisHandler from '../config/redis.ts'
+import { Stocks } from '../models/stock.model.ts'
+import type { PagePagination, Stock } from '../types/types.js'
+import { dateStringToNumber } from '../utils/index.ts'
+import CurrentStockService from './currentStock.service.ts'
 
-interface PagePagination {
-  page: number
-  size: number
-  sort?: keyof Stock
-  orderBy?: 'asc' | 'desc'
-}
 interface EndOfDayStock {
   date: string
   open: number
@@ -60,14 +53,18 @@ class StockService {
     }
   }
 
-  static getAllStocks = async (pagination: PagePagination, filter?: FilterQuery<Stock>) => {
+  static getAllStocks = async (
+    pagination: PagePagination<Stock>,
+    extraFilter?: FilterQuery<Stock>
+  ) => {
     const { page = 1, size = 10, sort = 'createAt', orderBy = 'asc' } = pagination
 
-    const defaultFilter: FilterQuery<Stock> = {
-      isDeleted: false
+    const filter: FilterQuery<Stock> = {
+      isDeleted: false,
+      ...extraFilter
     }
 
-    const data = await Stocks.find(filter ?? defaultFilter)
+    const data = await Stocks.find(filter)
       .limit(page)
       .skip(page * size)
       .sort({

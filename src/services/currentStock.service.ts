@@ -1,6 +1,6 @@
-import { BadRequest } from '../../core/error.response.ts'
-import { CurrentStocks } from '../../models/currentStock.model.ts'
-import { Stock, type CurrentStock } from '../../types/types.js'
+import { BadRequest } from '../core/error.response.ts'
+import { CurrentStocks } from '../models/currentStock.model.ts'
+import { Stock, type CurrentStock } from '../types/types.js'
 
 class CurrentStockService {
   static getCurrentStocks = async () => {
@@ -32,28 +32,28 @@ class CurrentStockService {
   }
 
   static createOrUpdateCurrentStock = async (body: Stock, endOfDayPrice: number) => {
-    const { code, purchasePrice, quantity, status } = body
+    const { code, orderPrice, volume, status } = body
     const foundCurrentStock = await this.getCurrentStockByCode(code)
     let currentStockBody: CurrentStock
 
     if (foundCurrentStock) {
-      const { quantity: foundCurrentStockQuantity, average: foundCurrentStockAverage } =
+      const { volume: foundCurrentStockQuantity, averagePrice: foundCurrentStockAverage } =
         foundCurrentStock
 
       let currentQuantity = 0
       let average = 0
       if (status === 'Buy') {
-        currentQuantity = foundCurrentStockQuantity + quantity
+        currentQuantity = foundCurrentStockQuantity + volume
         average =
-          (foundCurrentStockAverage * foundCurrentStockQuantity + purchasePrice * quantity) /
+          (foundCurrentStockAverage * foundCurrentStockQuantity + orderPrice * volume) /
           currentQuantity
       } else {
-        currentQuantity = foundCurrentStockQuantity - quantity
-        average = foundCurrentStock.average
+        currentQuantity = foundCurrentStockQuantity - volume
+        average = foundCurrentStock.averagePrice
       }
 
       if (currentQuantity < 0) {
-        throw new BadRequest("This stocks doesn't have enough quantity")
+        throw new BadRequest("This stocks doesn't have enough volume")
       }
       if (currentQuantity === 0) {
         return this.removeCurrentStock(code)
@@ -61,11 +61,11 @@ class CurrentStockService {
       const ratio = Number(((endOfDayPrice - average) / average).toFixed(2))
       currentStockBody = {
         code,
-        quantity: currentQuantity,
-        currentPrice: endOfDayPrice,
-        average: Number(average.toFixed(2)),
+        volume: currentQuantity,
+        marketPrice: endOfDayPrice,
+        averagePrice: Number(average.toFixed(2)),
         ratio,
-        actualGain: Number(((endOfDayPrice - average) * currentQuantity).toFixed(2))
+        investedValue: Number(((endOfDayPrice - average) * currentQuantity).toFixed(2))
       }
       return await this.updateCurrentStock(code, currentStockBody)
     }
@@ -76,11 +76,11 @@ class CurrentStockService {
 
     currentStockBody = {
       code,
-      average: Number(purchasePrice.toFixed(2)),
-      currentPrice: endOfDayPrice,
-      quantity,
-      ratio: Number(((endOfDayPrice - purchasePrice) / purchasePrice).toFixed(2)),
-      actualGain: (endOfDayPrice - purchasePrice) * quantity
+      averagePrice: Number(orderPrice.toFixed(2)),
+      marketPrice: endOfDayPrice,
+      volume,
+      ratio: Number(((endOfDayPrice - orderPrice) / orderPrice).toFixed(2)),
+      investedValue: (endOfDayPrice - orderPrice) * volume
     }
     return await this.createCurrentStock(currentStockBody)
   }

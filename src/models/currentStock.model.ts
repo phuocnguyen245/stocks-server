@@ -14,7 +14,7 @@ const CurrentStockSchema = new Schema<CurrentStock>(
       unique: true,
       required: true
     },
-    average: {
+    averagePrice: {
       type: Number,
       required: true
     },
@@ -22,16 +22,16 @@ const CurrentStockSchema = new Schema<CurrentStock>(
       type: Number,
       required: true
     },
-    currentPrice: {
+    marketPrice: {
       type: Number,
       required: true
     },
-    quantity: {
+    volume: {
       type: Number,
       required: true
     },
     // userId: Types.ObjectId,
-    actualGain: {
+    investedValue: {
       type: Number,
       required: true
     }

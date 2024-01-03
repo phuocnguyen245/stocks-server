@@ -1,7 +1,14 @@
 import { Types } from 'mongoose'
 
 type Status = 'Buy' | 'Sell'
+type OrderBy = 'asc' | 'desc'
 
+interface PagePagination<T> {
+  page: number
+  size: number
+  sort?: keyof T
+  orderBy?: OrderBy
+}
 interface User {
   name: string
   username: string
@@ -12,10 +19,10 @@ interface Stock {
   _id?: Types.ObjectId
   code: string
   date: string
-  quantity: number
-  purchasePrice: number
+  volume: number
+  orderPrice: number
   sellPrice: number
-  currentPrice?: number
+  marketPrice?: number
   ratio?: number
   status: Status
   userId?: Types.ObjectId
@@ -24,12 +31,33 @@ interface Stock {
 
 interface CurrentStock {
   code: string
-  average: number
-  quantity: number
-  currentPrice: number
+  averagePrice: number
+  volume: number
+  marketPrice: number
   ratio: number
-  actualGain?: number
+  investedValue?: number
   userId?: Types.ObjectId
 }
+type PaymentType = 0 | 1 | 2
+interface Payments {
+  name: string
+  type: PaymentType
+  balance: number
+  isDelete: boolean
+}
 
-export type { User, Stock, CurrentStock, Status }
+interface Assets {
+  availableBalance: number
+}
+
+export type {
+  User,
+  Stock,
+  CurrentStock,
+  Payments,
+  PaymentsType,
+  Assets,
+  Status,
+  OrderBy,
+  PagePagination
+}
