@@ -23,6 +23,7 @@ class StockService {
     const endOfDayPrice = endOfDayStocks[endOfDayStocks.length - 1].close / 1000
     return endOfDayPrice
   }
+
   static getEndOfDayStock = async (code: string) => {
     const foundCode = await this.redisHandler.get(code)
     if (foundCode) {
@@ -57,18 +58,19 @@ class StockService {
     pagination: PagePagination<Stock>,
     extraFilter?: FilterQuery<Stock>
   ) => {
-    const { page = 1, size = 10, sort = 'createAt', orderBy = 'asc' } = pagination
+    const { page = 1, size = 10, sort, orderBy } = pagination
 
     const filter: FilterQuery<Stock> = {
       isDeleted: false,
       ...extraFilter
     }
+    console.log(typeof sort)
 
     const data = await Stocks.find(filter)
       .limit(page)
       .skip(page * size)
       .sort({
-        [`${sort}`]: orderBy
+        [`${sort ?? 'createAt'}`]: orderBy ?? 'asc'
       })
       .lean()
     return data
@@ -81,28 +83,44 @@ class StockService {
   static createStock = async (body: Stock) => {
     const isBuy = body.status === 'Buy'
     const endOfDayPrice = await this.getEndOfDayPrice(body.code)
-    await CurrentStockService.createOrUpdateCurrentStock(body, endOfDayPrice)
+    let stock: Stock | undefined
 
-    if (!isBuy) {
-      return (await Stocks.create({ ...body })).toObject()
+    if (isBuy && endOfDayPrice > 0) {
+      stock = (await Stocks.create({ ...body, marketPrice: endOfDayPrice })).toObject()
+    } else {
+      stock = (await Stocks.create({ ...body })).toObject()
     }
-    if (endOfDayPrice > 0) {
-      return (await Stocks.create({ ...body, currentPrice: endOfDayPrice })).toObject()
-    }
+
+    const currentStock = await CurrentStockService.convertBodyToCreate(stock, endOfDayPrice, isBuy)
+    await CurrentStockService.createCurrentStock(currentStock)
+
+    return stock
   }
 
   static updateStock = async (id: string, body: Stock) => {
-    const stock = await Stocks.findOneAndUpdate(
-      { _id: new Types.ObjectId(id) },
-      { ...body },
-      { new: true }
-    )
-    const convertStock = stock?.toObject()
-    if (convertStock) {
-      const endOfDayPrice = await this.getEndOfDayPrice(convertStock.code)
-      await CurrentStockService.createOrUpdateCurrentStock(convertStock, endOfDayPrice)
+    const isBuy = body.status === 'Buy'
+    const oldStock = await this.getStockById(id)
+
+    if (oldStock) {
+      const endOfDayPrice = await this.getEndOfDayPrice(oldStock.code)
+      const newBody = await CurrentStockService.convertBodyToUpdate(
+        oldStock,
+        body,
+        endOfDayPrice,
+        isBuy
+      )
+      if (newBody) {
+        await CurrentStockService.updateCurrentStock(oldStock.code, newBody)
+        const stock = await Stocks.findOneAndUpdate(
+          { _id: new Types.ObjectId(id) },
+          { ...body },
+          { new: true }
+        )
+        const convertStock = stock?.toObject()
+        return convertStock
+      }
     }
-    return convertStock
+    return null
   }
 
   static removeStock = async (id: string) => {
@@ -129,50 +147,3 @@ class StockService {
 }
 
 export default StockService
-
-// const currentStocks = await Stocks.aggregate([
-//   {
-//     $match: {
-//       isDeleted: false,
-//       status: 'Buy'
-//     }
-//   },
-//   {
-//     $group: {
-//       _id: '$code',
-//       purchasePrice: {
-//         $sum: {
-//           $multiply: ['$purchasePrice', '$quantity']
-//         }
-//       },
-//       quantity: {
-//         $sum: '$quantity'
-//       },
-//       currentPrice: { $first: '$currentPrice' }
-//     }
-//   },
-//   {
-//     $addFields: {
-//       ratio: {
-//         $divide: [
-//           { $subtract: ['$currentPrice', { $divide: ['$purchasePrice', '$quantity'] }] },
-//           { $divide: ['$purchasePrice', '$quantity'] }
-//         ]
-//       },
-//       purchasePrice: { $divide: ['$purchasePrice', '$quantity'] }
-//     }
-//   },
-//   {
-//     $project: {
-//       _id: 0,
-//       code: '$_id',
-//       purchasePrice: '$purchasePrice',
-//       quantity: 1,
-//       currentPrice: 1,
-//       ratio: { $multiply: ['$ratio', 100] },
-//       actualGain: {
-//         $multiply: [{ $subtract: ['$currentPrice', '$purchasePrice'] }, '$quantity']
-//       }
-//     }
-//   }
-// ])

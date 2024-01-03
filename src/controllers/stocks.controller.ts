@@ -3,10 +3,10 @@ import { Types } from 'mongoose'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
 import StockService from '../services/stocks.service.ts'
-import { OrderBy, Stock } from '../types/types.js'
+import { PagePagination, Stock } from '../types/types.js'
 
 const message = {
-  NOTFOUND: "Stock wasn't found",
+  NOTFOUND: "Stock or Current Stock wasn't found",
   DELETED: 'Stock has been deleted',
   MISSING_CODE: 'Missing code'
 }
@@ -43,12 +43,12 @@ class StocksController {
   }
 
   static getAll = async (req: Request, res: Response) => {
-    const { page, size, sort, orderBy } = req.query
+    const { page, size, sort, orderBy } = req.query as unknown as PagePagination<Stock>
     const stocks = await StockService.getAllStocks({
-      page: Number(page),
-      size: Number(size),
-      sort: String(sort) as keyof Stock,
-      orderBy: String(orderBy) as OrderBy
+      page,
+      size,
+      sort,
+      orderBy
     })
 
     return new OK({

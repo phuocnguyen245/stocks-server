@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import PaymentService from '../services/payment.service.ts'
 import { CREATED, OK, UPDATED } from '../core/success.response.ts'
-import { OrderBy, Payments } from '../types/types.js'
+import { OrderBy, PagePagination, Payments } from '../types/types.js'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 
 const message = {
@@ -16,13 +16,13 @@ const message = {
 
 class PaymentController {
   static getAll = async (req: Request, res: Response) => {
-    const { page, size, sort, orderBy } = req.query
+    const { page, size, sort, orderBy } = req.query as unknown as PagePagination<Payments>
 
     const payments = await PaymentService.getAllPayments({
-      page: Number(page),
-      size: Number(size),
-      sort: String(sort) as keyof Payments,
-      orderBy: String(orderBy) as OrderBy
+      page,
+      size,
+      sort,
+      orderBy
     })
 
     return new OK({
@@ -35,6 +35,7 @@ class PaymentController {
       message: message.GET_ALL
     }).send(res)
   }
+
   static getById = async (req: Request, res: Response) => {
     const { id } = req.params
     const foundPayment = await PaymentService.getPaymentById(id)
@@ -43,11 +44,13 @@ class PaymentController {
     }
     return new OK({ data: foundPayment, message: message.GET_BY_ID }).send(res)
   }
+
   static create = async (req: Request, res: Response) => {
     const body = req.body
     const createdPayment = await PaymentService.createPayment(body)
     return new CREATED({ data: createdPayment, message: message.CREATED }).send(res)
   }
+
   static update = async (req: Request, res: Response) => {
     const body = req.body
     const { id } = req.params
@@ -57,6 +60,7 @@ class PaymentController {
     const createdPayment = await PaymentService.updatePayment(id, body)
     return new UPDATED({ data: createdPayment, message: message.CREATED }).send(res)
   }
+
   static remove = async (req: Request, res: Response) => {
     const { id } = req.params
     if (!id) {

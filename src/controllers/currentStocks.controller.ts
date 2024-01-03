@@ -16,6 +16,7 @@ class CurrentStockController {
       message: message.GET_ALL
     }).send(res)
   }
+
   static removeCurrentStock = async (req: Request, res: Response) => {
     await CurrentStockService.removeCurrentStock(req.params.code)
     return new DELETED({ data: null, message: message.REMOVE }).send(res)

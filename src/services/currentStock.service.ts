@@ -31,50 +31,51 @@ class CurrentStockService {
     return await CurrentStocks.findOneAndDelete({ code })
   }
 
-  static createOrUpdateCurrentStock = async (body: Stock, endOfDayPrice: number) => {
-    const { code, orderPrice, volume, status } = body
+  static convertBodyToCreate = async (
+    stock: Stock,
+    endOfDayPrice: number,
+    isBuy: boolean
+  ): Promise<CurrentStock> => {
+    const { code, orderPrice, volume, status, _id } = stock
     const foundCurrentStock = await this.getCurrentStockByCode(code)
-    let currentStockBody: CurrentStock
+    let newVolume = 0
+    let newAveragePrice = 0
 
     if (foundCurrentStock) {
-      const { volume: foundCurrentStockQuantity, averagePrice: foundCurrentStockAverage } =
-        foundCurrentStock
-
-      let currentQuantity = 0
-      let average = 0
-      if (status === 'Buy') {
-        currentQuantity = foundCurrentStockQuantity + volume
-        average =
-          (foundCurrentStockAverage * foundCurrentStockQuantity + orderPrice * volume) /
-          currentQuantity
+      if (isBuy) {
+        newVolume = foundCurrentStock.volume + volume
+        newAveragePrice =
+          (foundCurrentStock.averagePrice * volume + orderPrice * volume) / newVolume
       } else {
-        currentQuantity = foundCurrentStockQuantity - volume
-        average = foundCurrentStock.averagePrice
-      }
+        newVolume = foundCurrentStock.volume - volume
+        newAveragePrice = foundCurrentStock.averagePrice
 
-      if (currentQuantity < 0) {
-        throw new BadRequest("This stocks doesn't have enough volume")
+        if (newVolume < 0) {
+          throw new BadRequest("This stocks doesn't have enough volume")
+        }
+
+        if (newVolume === 0) {
+          this.removeCurrentStock(code)
+        }
       }
-      if (currentQuantity === 0) {
-        return this.removeCurrentStock(code)
-      }
-      const ratio = Number(((endOfDayPrice - average) / average).toFixed(2))
-      currentStockBody = {
+      const ratio = Number(((endOfDayPrice - newAveragePrice) / newAveragePrice).toFixed(2))
+      const investedValue = ((endOfDayPrice - newAveragePrice) * newVolume).toFixed(2)
+      const currentStock: CurrentStock = {
         code,
-        volume: currentQuantity,
-        marketPrice: endOfDayPrice,
-        averagePrice: Number(average.toFixed(2)),
+        averagePrice: newAveragePrice,
+        volume: newVolume,
         ratio,
-        investedValue: Number(((endOfDayPrice - average) * currentQuantity).toFixed(2))
+        marketPrice: endOfDayPrice,
+        investedValue: Number(investedValue)
       }
-      return await this.updateCurrentStock(code, currentStockBody)
+      return currentStock
     }
 
-    if (status === 'Sell') {
-      throw new BadRequest("Can't do it")
+    if (!isBuy) {
+      throw new BadRequest('Can not')
     }
 
-    currentStockBody = {
+    const currentStock: CurrentStock = {
       code,
       averagePrice: Number(orderPrice.toFixed(2)),
       marketPrice: endOfDayPrice,
@@ -82,7 +83,60 @@ class CurrentStockService {
       ratio: Number(((endOfDayPrice - orderPrice) / orderPrice).toFixed(2)),
       investedValue: (endOfDayPrice - orderPrice) * volume
     }
-    return await this.createCurrentStock(currentStockBody)
+    return currentStock
+  }
+
+  static convertBodyToUpdate = async (
+    oldStock: Stock,
+    body: Stock,
+    endOfDayPrice: number,
+    isBuy: boolean
+  ): Promise<CurrentStock | null> => {
+    const foundCurrentStock = await this.getCurrentStockByCode(oldStock.code)
+
+    if (foundCurrentStock) {
+      const { volume, orderPrice } = body
+      let newVolume = oldStock.volume
+      let newAveragePrice = 0
+      if (isBuy) {
+        if (volume && volume > 0) {
+          newVolume = foundCurrentStock.volume - oldStock.volume + volume
+        }
+        newAveragePrice =
+          (foundCurrentStock.averagePrice * foundCurrentStock.volume -
+            oldStock.orderPrice * oldStock.volume +
+            volume * orderPrice) /
+          newVolume
+        const currentStock: CurrentStock = {
+          ...body,
+          volume,
+          averagePrice: newAveragePrice,
+          marketPrice: endOfDayPrice,
+          investedValue: (endOfDayPrice - newAveragePrice) * newVolume,
+          ratio: Number(((endOfDayPrice - newAveragePrice) / newAveragePrice).toFixed(2))
+        }
+        return currentStock
+      }
+      if (volume && volume > 0) {
+        newVolume = foundCurrentStock.volume + oldStock.volume - volume
+      }
+      const currentStock: CurrentStock = {
+        ...body,
+        volume: newVolume,
+        averagePrice: foundCurrentStock.averagePrice,
+        marketPrice: endOfDayPrice,
+        investedValue: (endOfDayPrice - foundCurrentStock.averagePrice) * newVolume,
+        ratio: Number(
+          (
+            (endOfDayPrice - foundCurrentStock.averagePrice) /
+            foundCurrentStock.averagePrice
+          ).toFixed(2)
+        )
+      }
+      return currentStock
+    }
+
+    return null
   }
 }
 export default CurrentStockService

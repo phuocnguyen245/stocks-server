@@ -9,6 +9,7 @@ interface PagePagination<T> {
   sort?: keyof T
   orderBy?: OrderBy
 }
+
 interface User {
   name: string
   username: string
