@@ -30,4 +30,8 @@ const dateStringToNumber = (dateString: string) => {
   return utcPlus7Timestamp
 }
 
-export { pickKeysInObject, generateKey, dateStringToNumber }
+const convertToDecimal = (value: string | number, decimal = 2): number => {
+  return Number(Number(value).toFixed(2))
+}
+
+export { pickKeysInObject, generateKey, dateStringToNumber, convertToDecimal }

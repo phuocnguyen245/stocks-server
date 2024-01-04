@@ -5,6 +5,8 @@ import { Stocks } from '../models/stock.model.ts'
 import type { PagePagination, Stock } from '../types/types.js'
 import { dateStringToNumber } from '../utils/index.ts'
 import CurrentStockService from './currentStock.service.ts'
+import { BadRequest } from '../core/error.response.ts'
+import { log } from 'console'
 
 interface EndOfDayStock {
   date: string
@@ -18,17 +20,7 @@ interface EndOfDayStock {
 class StockService {
   static redisHandler = new RedisHandler()
 
-  static getEndOfDayPrice = async (code: string) => {
-    const endOfDayStocks = await this.getEndOfDayStock(code)
-    const endOfDayPrice = endOfDayStocks[endOfDayStocks.length - 1].close / 1000
-    return endOfDayPrice
-  }
-
-  static getEndOfDayStock = async (code: string) => {
-    const foundCode = await this.redisHandler.get(code)
-    if (foundCode) {
-      return JSON.parse(foundCode)
-    }
+  static getExpiredTime = () => {
     let remainingMilliseconds
     const now = new Date()
     const currentHour = now.getHours() // Get the current hour (0-23)
@@ -37,6 +29,21 @@ class StockService {
     } else {
       remainingMilliseconds = (24 - currentHour + 18) * 60 * 60 * 1000
     }
+    return Math.round(remainingMilliseconds / 1000)
+  }
+  static getEndOfDayPrice = async (code: string) => {
+    const endOfDayStocks = await this.getEndOfDayStock(code)
+    const endOfDayPrice = endOfDayStocks[endOfDayStocks.length - 1].close / 1000
+    return endOfDayPrice
+  }
+
+  static getEndOfDayStock = async (code: string) => {
+    const foundStock = await this.redisHandler.get(code)
+    if (foundStock) {
+      return JSON.parse(foundStock)
+    }
+
+    const expiredTime = this.getExpiredTime()
 
     try {
       const response = await axios.get(
@@ -44,10 +51,8 @@ class StockService {
       )
 
       await this.redisHandler.save(code, JSON.stringify(response.data))
-      await this.redisHandler.redis.expire(
-        `stocks-${code}`,
-        Math.round(remainingMilliseconds / 1000)
-      )
+      await this.redisHandler.redis.expire(`stocks-${code}`, expiredTime)
+
       return response.data
     } catch (error) {
       throw new Error(error as string)
@@ -84,13 +89,23 @@ class StockService {
     const endOfDayPrice = await this.getEndOfDayPrice(body.code)
     let stock: Stock | undefined
 
+    const foundCurrentStock = await CurrentStockService.getCurrentStockByCode(body.code)
+
+    if (!isBuy && foundCurrentStock) {
+      const newVolume = foundCurrentStock.volume - body.volume
+
+      if (newVolume < 0) {
+        throw new BadRequest("This stocks doesn't have enough volume")
+      }
+    }
+
     if (isBuy && endOfDayPrice > 0) {
       stock = (await Stocks.create({ ...body, marketPrice: endOfDayPrice })).toObject()
     } else {
       stock = (await Stocks.create({ ...body })).toObject()
     }
 
-    await CurrentStockService.convertBodyToCreate(stock, endOfDayPrice, isBuy)
+    await CurrentStockService.convertBodyToCreate(stock, foundCurrentStock, endOfDayPrice, isBuy)
 
     return stock
   }
@@ -129,19 +144,35 @@ class StockService {
   }
 
   static getStockStatistics = async (code: string) => {
-    const stock = (await this.getEndOfDayStock(code)) as EndOfDayStock[]
-    if (stock) {
-      const data = stock.map((item) => [
-        dateStringToNumber(item.date),
-        item.open,
-        item.high,
-        item.low,
-        item.close,
-        item.volume
-      ])
-      return data
+    const redisCode = `${code}-statistic`
+    const foundStockStatistics = await this.redisHandler.get(redisCode)
+
+    if (foundStockStatistics) {
+      return JSON.parse(foundStockStatistics)
     }
-    return []
+
+    const stock = (await this.getEndOfDayStock(code)) as EndOfDayStock[]
+
+    if (!stock || stock.length === 0) {
+      return []
+    }
+
+    const data: number[][] = stock.map((item) => [
+      dateStringToNumber(item.date),
+      item.open,
+      item.high,
+      item.low,
+      item.close,
+      item.volume
+    ])
+
+    const expiredTime = this.getExpiredTime()
+    const dataString = JSON.stringify(data)
+
+    await this.redisHandler.save(redisCode, dataString)
+    await this.redisHandler.redis.expire(`stocks-${redisCode}`, expiredTime)
+
+    return data
   }
 }
 
