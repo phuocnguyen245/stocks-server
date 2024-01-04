@@ -66,8 +66,8 @@ class StockService {
     }
 
     const data = await Stocks.find(filter)
-      .limit(page ?? 1)
-      .skip(page ?? 1 * size ?? 10)
+      .limit(size ?? 10)
+      .skip(((page ?? 1) - 1) * (size ?? 10))
       .sort({
         [`${sort ?? 'createAt'}`]: orderBy ?? 'asc'
       })
@@ -98,20 +98,21 @@ class StockService {
   static updateStock = async (id: string, body: Stock) => {
     const isBuy = body.status === 'Buy'
     const oldStock = await this.getStockById(id)
-
+    const { _id, ...rest } = body
     if (oldStock) {
       const endOfDayPrice = await this.getEndOfDayPrice(oldStock.code)
       const newBody = await CurrentStockService.convertBodyToUpdate(
         oldStock,
-        body,
+        rest,
         endOfDayPrice,
         isBuy
       )
       if (newBody) {
         await CurrentStockService.updateCurrentStock(oldStock.code, newBody)
-        const stock = await Stocks.findOneAndUpdate(
-          { _id: new Types.ObjectId(id) },
-          { ...body },
+
+        const stock = await Stocks.findByIdAndUpdate(
+          new Types.ObjectId(id),
+          { ...rest },
           { new: true }
         )
         const convertStock = stock?.toObject()

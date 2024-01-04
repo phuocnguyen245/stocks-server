@@ -32,7 +32,7 @@ class CurrentStockService {
   }
 
   static convertBodyToCreate = async (stock: Stock, endOfDayPrice: number, isBuy: boolean) => {
-    const { code, orderPrice, volume, status, _id } = stock
+    const { code, orderPrice, volume } = stock
     const foundCurrentStock = await this.getCurrentStockByCode(code)
     let newVolume = 0
     let newAveragePrice = 0
@@ -40,8 +40,10 @@ class CurrentStockService {
     if (foundCurrentStock) {
       if (isBuy) {
         newVolume = foundCurrentStock.volume + volume
+
         newAveragePrice =
-          (foundCurrentStock.averagePrice * volume + orderPrice * volume) / newVolume
+          (foundCurrentStock.averagePrice * foundCurrentStock.volume + orderPrice * volume) /
+          newVolume
       } else {
         newVolume = foundCurrentStock.volume - volume
         newAveragePrice = foundCurrentStock.averagePrice
@@ -64,6 +66,7 @@ class CurrentStockService {
         marketPrice: endOfDayPrice,
         investedValue: Number(investedValue)
       }
+
       return await CurrentStockService.updateCurrentStock(code, currentStock)
     }
 
@@ -89,7 +92,7 @@ class CurrentStockService {
     isBuy: boolean
   ): Promise<CurrentStock | null> => {
     const foundCurrentStock = await this.getCurrentStockByCode(oldStock.code)
-
+    //! Update sai
     if (foundCurrentStock) {
       const { volume, orderPrice } = body
       let newVolume = oldStock.volume
@@ -136,3 +139,5 @@ class CurrentStockService {
   }
 }
 export default CurrentStockService
+
+console.log((31 * 200 + 31 * 100) / 300)
