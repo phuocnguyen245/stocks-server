@@ -6,16 +6,15 @@ import type { PagePagination, Stock } from '../types/types.js'
 import { dateStringToNumber } from '../utils/index.ts'
 import CurrentStockService from './currentStock.service.ts'
 import { BadRequest } from '../core/error.response.ts'
-import { log } from 'console'
 
 interface EndOfDayStock {
   date: string
-  open: number
-  high: number
-  low: number
-  close: number
+  priceOpen: number
+  priceHigh: number
+  priceLow: number
+  priceClose: number
   adjusted_close: number
-  volume: number
+  dealVolume: number
 }
 class StockService {
   static redisHandler = new RedisHandler()
@@ -46,14 +45,22 @@ class StockService {
     const expiredTime = this.getExpiredTime()
 
     try {
-      const response = await axios.get(
-        `https://eodhd.com/api/eod/${code}.VN?api_token=6581c09e24c079.86508753&fmt=json`
-      )
-
-      await this.redisHandler.save(code, JSON.stringify(response.data))
-      await this.redisHandler.redis.expire(`stocks-${code}`, expiredTime)
-
-      return response.data
+      if (process.env.FIRE_ANT_KEY) {
+        const response = await axios.get(
+          `https://restv2.fireant.vn/symbols/${code}/historical-quotes?startDate=2021-01-05&endDate=2024-01-05&offset=0&limit=250`,
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.FIRE_ANT_KEY}`
+            }
+          }
+        )
+        await this.redisHandler.save(
+          code,
+          JSON.stringify((response.data as EndOfDayStock[]).reverse())
+        )
+        await this.redisHandler.redis.expire(`stocks-${code}`, expiredTime)
+        return response.data
+      }
     } catch (error) {
       throw new Error(error as string)
     }
@@ -159,11 +166,11 @@ class StockService {
 
     const data: number[][] = stock.map((item) => [
       dateStringToNumber(item.date),
-      item.open,
-      item.high,
-      item.low,
-      item.close,
-      item.volume
+      item.priceOpen,
+      item.priceHigh,
+      item.priceLow,
+      item.priceClose,
+      item.dealVolume
     ])
 
     const expiredTime = this.getExpiredTime()
