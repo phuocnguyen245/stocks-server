@@ -1,3 +1,4 @@
+import mongoose from 'mongoose'
 import { BadRequest } from '../core/error.response.ts'
 import { CurrentStocks } from '../models/currentStock.model.ts'
 import { Stock, type CurrentStock } from '../types/types.js'
@@ -14,29 +15,37 @@ class CurrentStockService {
     return stock
   }
 
-  static createCurrentStock = async (body: CurrentStock) => {
-    const stock = await CurrentStocks.create({ ...body })
-    return stock.toObject()
+  static createCurrentStock = async (
+    body: CurrentStock,
+    session?: mongoose.mongo.ClientSession
+  ) => {
+    const stock = await CurrentStocks.create([{ ...body }], { session: session || undefined })
+    return stock[0].toObject()
   }
 
-  static updateCurrentStock = async (code: string, body: CurrentStock) => {
+  static updateCurrentStock = async (
+    code: string,
+    body: CurrentStock,
+    session?: mongoose.mongo.ClientSession
+  ) => {
     const updatedCurrentStock = await CurrentStocks.findOneAndUpdate(
       { code },
-      { ...body },
+      { ...body, session: session || undefined },
       { isNew: true }
     )
     return updatedCurrentStock?.toObject()
   }
 
-  static removeCurrentStock = async (code: string) => {
-    return await CurrentStocks.findOneAndDelete({ code })
+  static removeCurrentStock = async (code: string, session?: mongoose.mongo.ClientSession) => {
+    return await CurrentStocks.findOneAndDelete({ code }, { session: session || undefined })
   }
 
   static convertBodyToCreate = async (
     stock: Stock,
     foundCurrentStock: CurrentStock | null,
     endOfDayPrice: number,
-    isBuy: boolean
+    isBuy: boolean,
+    session?: mongoose.mongo.ClientSession
   ) => {
     const { code, orderPrice, volume } = stock
     let newVolume = 0
@@ -59,7 +68,7 @@ class CurrentStockService {
         }
 
         if (newVolume === 0) {
-          this.removeCurrentStock(code)
+          this.removeCurrentStock(code, session)
         }
       }
       const ratio = convertToDecimal((endOfDayPrice - newAveragePrice) / newAveragePrice)
@@ -72,11 +81,13 @@ class CurrentStockService {
         marketPrice: endOfDayPrice,
         investedValue
       }
-
-      return await CurrentStockService.updateCurrentStock(code, currentStock)
+      const updatedStock = await CurrentStockService.updateCurrentStock(code, currentStock, session)
+      await session?.commitTransaction()
+      return updatedStock
     }
 
     if (!isBuy) {
+      await session?.abortTransaction()
       throw new BadRequest('Can not')
     }
 
@@ -88,7 +99,10 @@ class CurrentStockService {
       ratio: convertToDecimal((endOfDayPrice - orderPrice) / orderPrice),
       investedValue: (endOfDayPrice - orderPrice) * volume
     }
-    return await CurrentStockService.createCurrentStock(currentStock)
+
+    const createdStock = await CurrentStockService.createCurrentStock(currentStock, session)
+    await session?.commitTransaction()
+    return createdStock
   }
 
   static convertBodyToUpdate = async (
@@ -98,7 +112,7 @@ class CurrentStockService {
     isBuy: boolean
   ): Promise<CurrentStock | null> => {
     const foundCurrentStock = await this.getCurrentStockByCode(oldStock.code)
-    //! Update sai
+
     if (foundCurrentStock) {
       const { volume, orderPrice } = body
       let newVolume = oldStock.volume

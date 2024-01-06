@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { FilterQuery, Types } from 'mongoose'
+import mongoose, { FilterQuery, Types } from 'mongoose'
 import RedisHandler from '../config/redis.ts'
 import { Stocks } from '../models/stock.model.ts'
 import type { PagePagination, Stock } from '../types/types.js'
@@ -30,9 +30,10 @@ class StockService {
     }
     return Math.round(remainingMilliseconds / 1000)
   }
+
   static getEndOfDayPrice = async (code: string) => {
-    const endOfDayStocks = await this.getEndOfDayStock(code)
-    const endOfDayPrice = endOfDayStocks[endOfDayStocks.length - 1].close / 1000
+    const endOfDayStocks: EndOfDayStock[] = await this.getEndOfDayStock(code)
+    const endOfDayPrice = endOfDayStocks[endOfDayStocks.length - 1].priceClose
     return endOfDayPrice
   }
 
@@ -92,29 +93,45 @@ class StockService {
   }
 
   static createStock = async (body: Stock) => {
-    const isBuy = body.status === 'Buy'
-    const endOfDayPrice = await this.getEndOfDayPrice(body.code)
-    let stock: Stock | undefined
+    const session = await mongoose.startSession()
+    session.startTransaction()
+    try {
+      const isBuy = body.status === 'Buy'
+      const endOfDayPrice = await this.getEndOfDayPrice(body.code)
+      let stock: Stock[] | undefined
 
-    const foundCurrentStock = await CurrentStockService.getCurrentStockByCode(body.code)
+      const foundCurrentStock = await CurrentStockService.getCurrentStockByCode(body.code)
 
-    if (!isBuy && foundCurrentStock) {
-      const newVolume = foundCurrentStock.volume - body.volume
+      if (!isBuy && foundCurrentStock) {
+        const newVolume = foundCurrentStock.volume - body.volume
 
-      if (newVolume < 0) {
-        throw new BadRequest("This stocks doesn't have enough volume")
+        if (newVolume < 0) {
+          throw new BadRequest("This stocks doesn't have enough volume")
+        }
       }
+
+      if (isBuy && endOfDayPrice > 0) {
+        stock = (await Stocks.create([{ ...body, marketPrice: endOfDayPrice }], { session })) as any
+      } else {
+        stock = (await Stocks.create([{ ...body }], { session })) as any
+      }
+
+      if (stock?.length) {
+        await CurrentStockService.convertBodyToCreate(
+          stock[0],
+          foundCurrentStock,
+          endOfDayPrice,
+          isBuy,
+          session
+        )
+      }
+      return stock
+    } catch (error: any) {
+      await session.abortTransaction()
+      throw new BadRequest(error)
+    } finally {
+      session.endSession()
     }
-
-    if (isBuy && endOfDayPrice > 0) {
-      stock = (await Stocks.create({ ...body, marketPrice: endOfDayPrice })).toObject()
-    } else {
-      stock = (await Stocks.create({ ...body })).toObject()
-    }
-
-    await CurrentStockService.convertBodyToCreate(stock, foundCurrentStock, endOfDayPrice, isBuy)
-
-    return stock
   }
 
   static updateStock = async (id: string, body: Stock) => {
