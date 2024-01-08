@@ -73,19 +73,34 @@ class StockService {
   ) => {
     const { page, size, sort, orderBy } = pagination
 
+    const sortPage = page || 0
+    const sortSize = size || 10
+
     const filter: FilterQuery<Stock> = {
       isDeleted: false,
       ...extraFilter
     }
 
-    const data = await Stocks.find(filter)
-      .limit(size ?? 10)
-      .skip(((page ?? 1) - 1) * (size ?? 10))
-      .sort({
-        [`${sort ?? 'createAt'}`]: orderBy ?? 'asc'
-      })
-      .lean()
-    return data
+    const getData = async () =>
+      await Stocks.find(filter)
+        .sort([
+          ['status', 1],
+          [`${sort ?? 'createdAt'}`, orderBy ?? 1]
+        ])
+        .limit(sortSize)
+        .skip(sortPage * sortSize)
+        .lean()
+
+    const getAllData = async () => await Stocks.count(filter)
+
+    const [data, totalItems] = await Promise.all([getData(), getAllData()])
+
+    return {
+      data,
+      page: sortPage,
+      size: sortSize,
+      totalItems
+    }
   }
 
   static getStockById = async (id: string) => {
@@ -135,36 +150,66 @@ class StockService {
   }
 
   static updateStock = async (id: string, body: Stock) => {
-    const isBuy = body.status === 'Buy'
-    const oldStock = await this.getStockById(id)
-    const { _id, ...rest } = body
-    if (oldStock) {
-      const endOfDayPrice = await this.getEndOfDayPrice(oldStock.code)
-      const newBody = await CurrentStockService.convertBodyToUpdate(
-        oldStock,
-        rest,
-        endOfDayPrice,
-        isBuy
-      )
-      if (newBody) {
-        await CurrentStockService.updateCurrentStock(oldStock.code, newBody)
+    const session = await mongoose.startSession()
+    session.startTransaction()
+    try {
+      const isBuy = body.status === 'Buy'
 
-        const stock = await Stocks.findByIdAndUpdate(
-          new Types.ObjectId(id),
-          { ...rest },
-          { new: true }
+      const oldStock = await this.getStockById(id)
+      const { _id, ...rest } = body
+
+      if (oldStock) {
+        const endOfDayPrice = await this.getEndOfDayPrice(oldStock.code)
+        const newBody = await CurrentStockService.convertBodyToUpdate(
+          oldStock,
+          rest,
+          endOfDayPrice,
+          isBuy
         )
-        const convertStock = stock?.toObject()
-        return convertStock
+
+        if (newBody) {
+          await CurrentStockService.updateCurrentStock(oldStock.code, newBody, session)
+
+          const stock = await Stocks.findByIdAndUpdate(
+            new Types.ObjectId(id),
+            { ...rest },
+            { new: true, session }
+          )
+          await session?.commitTransaction()
+          const convertStock = stock?.toObject()
+          return convertStock
+        }
       }
+      return null
+    } catch (error: any) {
+      await session.abortTransaction()
+      throw new BadRequest(error)
+    } finally {
+      session.endSession()
     }
-    return null
   }
 
-  static removeStock = async (id: string) => {
-    return await Stocks.findByIdAndUpdate(new Types.ObjectId(id), {
-      isDeleted: true
-    })
+  static removeStock = async (id: string, foundStock: Stock) => {
+    const session = await mongoose.startSession()
+    session.startTransaction()
+    try {
+      await CurrentStockService.updateRemoveStock(foundStock, session)
+
+      const data = await Stocks.findByIdAndUpdate(
+        new Types.ObjectId(id),
+        {
+          isDeleted: true
+        },
+        { session }
+      )
+
+      await session.commitTransaction()
+      return data
+    } catch (error) {
+      return session.abortTransaction()
+    } finally {
+      session.endSession()
+    }
   }
 
   static getStockStatistics = async (code: string) => {

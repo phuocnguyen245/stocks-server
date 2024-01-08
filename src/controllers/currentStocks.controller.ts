@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import CurrentStockService from '../services/currentStock.service.ts'
 import { DELETED, OK } from '../core/success.response.ts'
+import { CurrentStock, PagePagination } from '../types/types.js'
 
 const message = {
   GET_ALL: 'Get all current stocks successfully',
@@ -9,10 +10,18 @@ const message = {
 
 class CurrentStockController {
   static getCurrentStocks = async (req: Request, res: Response) => {
-    const currentStocks = await CurrentStockService.getCurrentStocks()
-    const length = currentStocks.length
+    const { page, size, sort, orderBy } = req.query as unknown as PagePagination<CurrentStock>
+    const numberPage = Number(page)
+    const numberSize = Number(size)
+    const data = await CurrentStockService.getCurrentStocks({
+      page: numberPage,
+      size: numberSize,
+      orderBy,
+      sort
+    })
+
     return new OK({
-      data: { data: currentStocks, page: 1, size: length, totalItems: currentStocks.length },
+      data,
       message: message.GET_ALL
     }).send(res)
   }

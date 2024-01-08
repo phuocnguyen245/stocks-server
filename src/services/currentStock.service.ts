@@ -1,13 +1,32 @@
 import mongoose from 'mongoose'
-import { BadRequest } from '../core/error.response.ts'
+import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CurrentStocks } from '../models/currentStock.model.ts'
-import { Stock, type CurrentStock } from '../types/types.js'
+import { Stock, type CurrentStock, PagePagination } from '../types/types.js'
 import { convertToDecimal } from '../utils/index.ts'
+import StockService from './stocks.service.ts'
 
 class CurrentStockService {
-  static getCurrentStocks = async () => {
-    const stocks = await CurrentStocks.find().lean()
-    return stocks
+  static getCurrentStocks = async (pagination: PagePagination<CurrentStock>) => {
+    const { page, size, sort, orderBy } = pagination
+    const sortPage = page || 0
+    const sortSize = size || 10
+
+    const [data, totalItems] = await Promise.all([
+      await CurrentStocks.find()
+        .sort({
+          [`${sort ?? 'createdAt'}`]: orderBy ?? 'desc'
+        })
+        .limit(sortSize)
+        .skip(sortPage * sortSize)
+        .lean(),
+      await CurrentStocks.count()
+    ])
+    return {
+      data,
+      page: sortPage,
+      size: sortSize,
+      totalItems
+    }
   }
 
   static getCurrentStockByCode = async (code: string) => {
@@ -30,8 +49,8 @@ class CurrentStockService {
   ) => {
     const updatedCurrentStock = await CurrentStocks.findOneAndUpdate(
       { code },
-      { ...body, session: session || undefined },
-      { isNew: true }
+      { ...body },
+      { isNew: true, session: session || undefined }
     )
     return updatedCurrentStock?.toObject()
   }
@@ -71,14 +90,18 @@ class CurrentStockService {
           this.removeCurrentStock(code, session)
         }
       }
-      const ratio = convertToDecimal((endOfDayPrice - newAveragePrice) / newAveragePrice)
-      const investedValue = convertToDecimal((endOfDayPrice - newAveragePrice) * newVolume)
+      const ratio = convertToDecimal(
+        (foundCurrentStock.marketPrice - newAveragePrice) / newAveragePrice
+      )
+      const investedValue = convertToDecimal(
+        (foundCurrentStock.marketPrice - newAveragePrice) * newVolume
+      )
       const currentStock: CurrentStock = {
         code,
         averagePrice: newAveragePrice,
         volume: newVolume,
         ratio,
-        marketPrice: endOfDayPrice,
+        marketPrice: foundCurrentStock.marketPrice,
         investedValue
       }
       const updatedStock = await CurrentStockService.updateCurrentStock(code, currentStock, session)
@@ -131,9 +154,13 @@ class CurrentStockService {
           ...body,
           volume: newVolume,
           averagePrice: convertToDecimal(newAveragePrice),
-          marketPrice: endOfDayPrice,
-          investedValue: convertToDecimal((endOfDayPrice - newAveragePrice) * newVolume),
-          ratio: convertToDecimal((endOfDayPrice - newAveragePrice) / newAveragePrice)
+          marketPrice: foundCurrentStock.marketPrice,
+          investedValue: convertToDecimal(
+            (foundCurrentStock.marketPrice - newAveragePrice) * newVolume
+          ),
+          ratio: convertToDecimal(
+            (foundCurrentStock.marketPrice - newAveragePrice) / newAveragePrice
+          )
         }
         return currentStock
       }
@@ -156,6 +183,69 @@ class CurrentStockService {
     }
 
     return null
+  }
+
+  static updateRemoveStock = async (stock: Stock, session: mongoose.mongo.ClientSession) => {
+    const isBuy = stock.status === 'Buy'
+    const foundCurrentStock = await this.getCurrentStockByCode(stock.code)
+    const marketPrice = await StockService.getEndOfDayPrice(stock.code)
+    if (!foundCurrentStock) {
+      if (!isBuy) {
+        throw new NotFound('This stock is not available')
+      }
+      return await this.createCurrentStock(
+        {
+          averagePrice: stock.orderPrice,
+          code: stock.code,
+          marketPrice: await StockService.getEndOfDayPrice(stock.code),
+          volume: stock.volume,
+          ratio: convertToDecimal((marketPrice - stock.orderPrice) / stock.orderPrice)
+        },
+        session
+      )
+    }
+    if (!isBuy) {
+      const newVolume = stock.volume + foundCurrentStock.volume
+      const averagePrice = foundCurrentStock.averagePrice
+      return await this.updateCurrentStock(
+        stock.code,
+        {
+          volume: newVolume,
+          code: stock.code,
+          averagePrice,
+          marketPrice: foundCurrentStock.marketPrice,
+          ratio: foundCurrentStock.ratio,
+          investedValue: convertToDecimal((marketPrice - averagePrice) * newVolume)
+        },
+        session
+      )
+    }
+    const newVolume = foundCurrentStock.volume - stock.volume
+    if (newVolume === 0) {
+      return this.removeCurrentStock(stock.code, session)
+    }
+    const averagePrice = convertToDecimal(
+      (foundCurrentStock.averagePrice * foundCurrentStock.volume -
+        stock.volume * stock.orderPrice) /
+        newVolume
+    )
+    const ratio = convertToDecimal((foundCurrentStock.marketPrice - averagePrice) / averagePrice)
+    const investedValue = convertToDecimal(
+      (foundCurrentStock.marketPrice - averagePrice) * newVolume
+    )
+
+    return await this.updateCurrentStock(
+      stock.code,
+      {
+        code: stock.code,
+        averagePrice,
+        volume: newVolume,
+        marketPrice: foundCurrentStock.marketPrice,
+        ratio,
+        investedValue
+      },
+      session
+    )
   }
 }
 export default CurrentStockService

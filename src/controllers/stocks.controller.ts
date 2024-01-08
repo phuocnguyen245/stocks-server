@@ -4,6 +4,7 @@ import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
 import StockService from '../services/stocks.service.ts'
 import { PagePagination, Stock } from '../types/types.js'
+import CurrentStockService from '../services/currentStock.service.ts'
 
 const message = {
   NOTFOUND: "Stock or Current Stock wasn't found",
@@ -44,20 +45,17 @@ class StocksController {
 
   static getAll = async (req: Request, res: Response) => {
     const { page, size, sort, orderBy } = req.query as unknown as PagePagination<Stock>
-    const stocks = await StockService.getAllStocks({
-      page,
-      size,
+    const numberPage = Number(page)
+    const numberSize = Number(size)
+    const data = await StockService.getAllStocks({
+      page: numberPage,
+      size: numberSize,
       sort,
       orderBy
     })
 
     return new OK({
-      data: {
-        data: stocks,
-        totalItems: stocks.length,
-        page,
-        size
-      }
+      data
     }).send(res)
   }
 
@@ -108,7 +106,8 @@ class StocksController {
     if (!foundStock) {
       throw new NotFound(message.NOTFOUND)
     }
-    await StockService.removeStock(id)
+    await StockService.removeStock(id, foundStock)
+
     return new DELETED({ message: message.DELETED }).send(res)
   }
 

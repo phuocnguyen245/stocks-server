@@ -23,19 +23,23 @@ class PaymentService {
       .lean()
     return data
   }
+
   static createPayment = async (body: PaymentsType) => {
     const { name, balance, type } = body
     const payment = (await Payments.create({ name, balance, type })).toObject()
     return payment
   }
+
   static getPaymentById = async (id: string) => {
     return (await Payments.findById(new Types.ObjectId(id)))?.toObject()
   }
+
   static updatePayment = async (id: string, body: PaymentsType) => {
     return (
       await Payments.findByIdAndUpdate(new Types.ObjectId(id), body, { isNew: true })
     )?.toObject()
   }
+
   static removePayment = async (id: string) => {
     return await Payments.findByIdAndUpdate(new Types.ObjectId(id), { isDelete: true })
   }
