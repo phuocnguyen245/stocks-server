@@ -4,7 +4,13 @@ import { OK } from '../core/success.response.ts'
 
 class AssetController {
   static getAsset = async (req: Request, res: Response) => {
-    const data = AssetsService.getAsset()
-    return new OK({ data }).send(res)
+    const data = await AssetsService.getAsset()
+    return new OK({
+      data: {
+        ...data
+      }
+    }).send(res)
   }
 }
+
+export default AssetController

@@ -6,6 +6,7 @@ import type { PagePagination, Stock } from '../types/types.js'
 import { dateStringToNumber } from '../utils/index.ts'
 import CurrentStockService from './currentStock.service.ts'
 import { BadRequest } from '../core/error.response.ts'
+import AssetsService from './assets.service.ts'
 
 interface EndOfDayStock {
   date: string
@@ -18,6 +19,13 @@ interface EndOfDayStock {
 }
 class StockService {
   static redisHandler = new RedisHandler()
+
+  static moneyCheck = (firstBalance: number, lastBalance: number) => {
+    if (firstBalance >= lastBalance) {
+      return true
+    }
+    throw new BadRequest("Don't have enough money to buy this stock")
+  }
 
   static getExpiredTime = () => {
     let remainingMilliseconds
@@ -112,35 +120,45 @@ class StockService {
     session.startTransaction()
     try {
       const isBuy = body.status === 'Buy'
-      const endOfDayPrice = await this.getEndOfDayPrice(body.code)
-      let stock: Stock[] | undefined
-
-      const foundCurrentStock = await CurrentStockService.getCurrentStockByCode(body.code)
-
-      if (!isBuy && foundCurrentStock) {
-        const newVolume = foundCurrentStock.volume - body.volume
-
-        if (newVolume < 0) {
-          throw new BadRequest("This stocks doesn't have enough volume")
-        }
-      }
-
-      if (isBuy && endOfDayPrice > 0) {
-        stock = (await Stocks.create([{ ...body, marketPrice: endOfDayPrice }], { session })) as any
-      } else {
-        stock = (await Stocks.create([{ ...body }], { session })) as any
-      }
-
-      if (stock?.length) {
-        await CurrentStockService.convertBodyToCreate(
-          stock[0],
-          foundCurrentStock,
-          endOfDayPrice,
-          isBuy,
-          session
+      const assets = await AssetsService.getAsset()
+      if (
+        this.moneyCheck(
+          assets.paymentBalance - assets.stockBalance.totalBuy,
+          body.orderPrice * body.volume
         )
+      ) {
+        const endOfDayPrice = await this.getEndOfDayPrice(body.code)
+        let stock: Stock[] | undefined
+
+        const foundCurrentStock = await CurrentStockService.getCurrentStockByCode(body.code)
+
+        if (!isBuy && foundCurrentStock) {
+          const newVolume = foundCurrentStock.volume - body.volume
+
+          if (newVolume < 0) {
+            throw new BadRequest("This stocks doesn't have enough volume")
+          }
+        }
+
+        if (isBuy && endOfDayPrice > 0) {
+          stock = (await Stocks.create([{ ...body, marketPrice: endOfDayPrice }], {
+            session
+          })) as any
+        } else {
+          stock = (await Stocks.create([{ ...body }], { session })) as any
+        }
+
+        if (stock?.length) {
+          await CurrentStockService.convertBodyToCreate(
+            stock[0],
+            foundCurrentStock,
+            endOfDayPrice,
+            isBuy,
+            session
+          )
+        }
+        return stock
       }
-      return stock
     } catch (error: any) {
       await session.abortTransaction()
       throw new BadRequest(error)
@@ -242,6 +260,38 @@ class StockService {
     await this.redisHandler.redis.expire(`stocks-${redisCode}`, expiredTime)
 
     return data
+  }
+
+  static getSellStockBalance = async (): Promise<{ totalSell: number; totalBuy: number }> => {
+    const sellStockBalance: { totalSell: number; totalBuy: number }[] = await Stocks.aggregate([
+      {
+        $match: {
+          isDeleted: false
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalSell: {
+            $sum: {
+              $cond: [
+                { $eq: ['$status', 'Sell'] }, // condition
+                { $multiply: ['$sellPrice', '$volume'] } // if true
+              ]
+            }
+          },
+          totalBuy: {
+            $sum: {
+              $cond: [
+                { $eq: ['$status', 'Buy'] }, // condition
+                { $multiply: ['$orderPrice', '$volume'] } // if true
+              ]
+            }
+          }
+        }
+      }
+    ])
+    return sellStockBalance[0]
   }
 }
 

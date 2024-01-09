@@ -8,25 +8,26 @@ class PaymentService {
     extraFilter?: FilterQuery<PaymentsType>
   ) => {
     const { page, size, sort, orderBy } = pagination
-
+    const sortPage = page || 0
+    const sortSize = size || 10
     const filter: FilterQuery<PaymentsType> = {
       isDeleted: false,
       ...extraFilter
     }
 
     const data = await Payments.find(filter)
-      .limit(size ?? 10)
-      .skip(((page ?? 1) - 1) * (size ?? 10))
       .sort({
-        [`${sort ?? 'createdAt'}`]: orderBy ?? 'asc'
+        [`${sort ?? 'createdAt'}`]: orderBy ?? 'desc'
       })
+      .limit(sortSize)
+      .skip(sortPage * sortSize)
       .lean()
     return data
   }
 
   static createPayment = async (body: PaymentsType) => {
-    const { name, balance, type } = body
-    const payment = (await Payments.create({ name, balance, type })).toObject()
+    const { name, balance, type, date } = body
+    const payment = (await Payments.create({ name, balance, type, date })).toObject()
     return payment
   }
 
@@ -41,27 +42,27 @@ class PaymentService {
   }
 
   static removePayment = async (id: string) => {
-    return await Payments.findByIdAndUpdate(new Types.ObjectId(id), { isDelete: true })
+    return await Payments.findByIdAndUpdate(new Types.ObjectId(id), { isDeleted: true })
   }
 
   static getBalance = async () => {
-    const balance = await Payments.aggregate([
+    const result = await Payments.aggregate([
+      {
+        $match: { isDeleted: false }
+      },
       {
         $group: {
           _id: null,
           totalBalance: {
             $sum: {
-              $con: {
-                if: { $eq: ['$type', 1] },
-                then: { $multiply: ['$balance', -1] },
-                else: '$balance'
-              }
+              $cond: [{ $eq: ['$type', 1] }, { $multiply: ['$balance', -1] }, '$balance']
             }
           }
         }
       }
     ])
-    return balance
+
+    return result[0]?.totalBalance || 0 // Return the ca
   }
 }
 export default PaymentService

@@ -44,7 +44,8 @@ interface Payments {
   name: string
   type: PaymentType
   balance: number
-  isDelete: boolean
+  isDeleted: boolean
+  date: string
 }
 
 interface Assets {

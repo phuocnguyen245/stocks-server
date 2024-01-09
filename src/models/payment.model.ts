@@ -17,7 +17,11 @@ const PaymentSchema = new Schema<PaymentsType>(
       enum: [0, 1],
       default: 0
     },
-    isDelete: {
+    date: {
+      type: String,
+      required: true
+    },
+    isDeleted: {
       type: Boolean,
       default: false
     }
@@ -27,11 +31,5 @@ const PaymentSchema = new Schema<PaymentsType>(
     collection: NAME.COLLECTION
   }
 )
-PaymentSchema.pre('save', function (next) {
-  if (this.type === 1) {
-    this.balance *= -1
-  }
-  next()
-})
 
 export const Payments = mongoose.model(NAME.DOCUMENT, PaymentSchema)
