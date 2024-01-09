@@ -18,7 +18,7 @@ class PaymentService {
       .limit(size ?? 10)
       .skip(((page ?? 1) - 1) * (size ?? 10))
       .sort({
-        [`${sort ?? 'createAt'}`]: orderBy ?? 'asc'
+        [`${sort ?? 'createdAt'}`]: orderBy ?? 'asc'
       })
       .lean()
     return data
@@ -42,6 +42,26 @@ class PaymentService {
 
   static removePayment = async (id: string) => {
     return await Payments.findByIdAndUpdate(new Types.ObjectId(id), { isDelete: true })
+  }
+
+  static getBalance = async () => {
+    const balance = await Payments.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalBalance: {
+            $sum: {
+              $con: {
+                if: { $eq: ['$type', 1] },
+                then: { $multiply: ['$balance', -1] },
+                else: '$balance'
+              }
+            }
+          }
+        }
+      }
+    ])
+    return balance
   }
 }
 export default PaymentService

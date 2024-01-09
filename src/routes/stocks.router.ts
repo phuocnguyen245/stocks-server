@@ -1,6 +1,6 @@
 import express from 'express'
-import StocksController from '../../controllers/stocks.controller.ts'
-import { asyncHandler } from '../../utils/helpers/asyncHandler.ts'
+import StocksController from '../controllers/stocks.controller.ts'
+import { asyncHandler } from '../utils/helpers/asyncHandler.ts'
 const router = express.Router()
 
 router.get('/', asyncHandler(StocksController.getAll))

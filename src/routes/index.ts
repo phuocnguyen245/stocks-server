@@ -1,7 +1,7 @@
 import express from 'express'
-import StockRouter from './stocks/index.ts'
+import StockRouter from './stocks.router.ts'
 import PaymentRouter from './payment.router.ts'
-import CurrentStockRouter from './currentStocks/index.ts'
+import CurrentStockRouter from './currentStocks.router.ts'
 const router = express.Router()
 
 router.use('/stocks', StockRouter)

@@ -39,7 +39,7 @@ interface CurrentStock {
   investedValue?: number
   userId?: Types.ObjectId
 }
-type PaymentType = 0 | 1 | 2
+type PaymentType = 0 | 1
 interface Payments {
   name: string
   type: PaymentType

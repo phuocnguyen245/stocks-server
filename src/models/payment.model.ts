@@ -7,14 +7,14 @@ const NAME = {
   COLLECTION: 'Payments'
 }
 
-// type 0 = top up, type 1 = withdraw, type 2 = fee
+// type 0 = top up, type 1 = withdraw
 const PaymentSchema = new Schema<PaymentsType>(
   {
     name: String,
     balance: Number,
     type: {
       type: Number,
-      enum: [0, 1, 2],
+      enum: [0, 1],
       default: 0
     },
     isDelete: {
@@ -27,5 +27,11 @@ const PaymentSchema = new Schema<PaymentsType>(
     collection: NAME.COLLECTION
   }
 )
+PaymentSchema.pre('save', function (next) {
+  if (this.type === 1) {
+    this.balance *= -1
+  }
+  next()
+})
 
 export const Payments = mongoose.model(NAME.DOCUMENT, PaymentSchema)
