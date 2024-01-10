@@ -3,10 +3,11 @@ import mongoose, { FilterQuery, Types } from 'mongoose'
 import RedisHandler from '../config/redis.ts'
 import { Stocks } from '../models/stock.model.ts'
 import type { PagePagination, Stock } from '../types/types.js'
-import { dateStringToNumber } from '../utils/index.ts'
+import { countDays, dateStringToNumber } from '../utils/index.ts'
 import CurrentStockService from './currentStock.service.ts'
 import { BadRequest } from '../core/error.response.ts'
 import AssetsService from './assets.service.ts'
+import moment from 'moment'
 
 interface EndOfDayStock {
   date: string
@@ -20,11 +21,28 @@ interface EndOfDayStock {
 class StockService {
   static redisHandler = new RedisHandler()
 
-  static moneyCheck = (firstBalance: number, lastBalance: number) => {
-    if (firstBalance >= lastBalance) {
+  static getBalance = async () => {
+    const assets = await AssetsService.getAsset()
+    const paymentBalance = assets.payment / 1000
+    const stocksBalance = assets.stock.sell - assets.stock.order - assets.stock.waiting
+    const totalBalance = paymentBalance + stocksBalance
+    return totalBalance
+  }
+
+  static checkBalanceBuy = async (balance: number) => {
+    const totalBalance = await this.getBalance()
+    if (totalBalance >= balance) {
       return true
     }
-    throw new BadRequest("Don't have enough money to buy this stock")
+    return false
+  }
+
+  static checkBalanceUpdate = async (oldBalance: number, balance: number) => {
+    const totalBalance = await this.getBalance()
+    if (totalBalance + oldBalance >= balance) {
+      return true
+    }
+    return false
   }
 
   static getExpiredTime = () => {
@@ -52,11 +70,13 @@ class StockService {
     }
 
     const expiredTime = this.getExpiredTime()
+    const today = moment().format('YYYY-MM-DD')
+    console.log(today)
 
     try {
       if (process.env.FIRE_ANT_KEY) {
         const response = await axios.get(
-          `https://restv2.fireant.vn/symbols/${code}/historical-quotes?startDate=2021-01-05&endDate=2024-01-05&offset=0&limit=250`,
+          `https://restv2.fireant.vn/symbols/${code}/historical-quotes?startDate=2021-01-05&endDate=${today}&offset=0&limit=250`,
           {
             headers: {
               Authorization: `Bearer ${process.env.FIRE_ANT_KEY}`
@@ -120,45 +140,41 @@ class StockService {
     session.startTransaction()
     try {
       const isBuy = body.status === 'Buy'
-      const assets = await AssetsService.getAsset()
-      if (
-        this.moneyCheck(
-          assets.paymentBalance - assets.stockBalance.totalBuy,
-          body.orderPrice * body.volume
-        )
-      ) {
-        const endOfDayPrice = await this.getEndOfDayPrice(body.code)
-        let stock: Stock[] | undefined
+      const endOfDayPrice = await this.getEndOfDayPrice(body.code)
+      let stock: Stock[] | undefined
 
-        const foundCurrentStock = await CurrentStockService.getCurrentStockByCode(body.code)
+      const foundCurrentStock = await CurrentStockService.getCurrentStockByCode(body.code)
 
-        if (!isBuy && foundCurrentStock) {
-          const newVolume = foundCurrentStock.volume - body.volume
+      if (!isBuy && foundCurrentStock) {
+        const newVolume = foundCurrentStock.volume - body.volume
 
-          if (newVolume < 0) {
-            throw new BadRequest("This stocks doesn't have enough volume")
-          }
+        if (newVolume < 0) {
+          throw new BadRequest("This stocks doesn't have enough volume")
         }
+      }
 
-        if (isBuy && endOfDayPrice > 0) {
+      if (isBuy && endOfDayPrice > 0) {
+        if (await this.checkBalanceBuy(body.orderPrice * body.volume)) {
           stock = (await Stocks.create([{ ...body, marketPrice: endOfDayPrice }], {
             session
           })) as any
         } else {
-          stock = (await Stocks.create([{ ...body }], { session })) as any
+          throw new BadRequest("You don't have enough money to do ")
         }
-
-        if (stock?.length) {
-          await CurrentStockService.convertBodyToCreate(
-            stock[0],
-            foundCurrentStock,
-            endOfDayPrice,
-            isBuy,
-            session
-          )
-        }
-        return stock
+      } else {
+        stock = (await Stocks.create([{ ...body }], { session })) as any
       }
+
+      if (stock?.length) {
+        await CurrentStockService.convertBodyToCreate(
+          stock[0],
+          foundCurrentStock,
+          endOfDayPrice,
+          isBuy,
+          session
+        )
+      }
+      return stock
     } catch (error: any) {
       await session.abortTransaction()
       throw new BadRequest(error)
@@ -177,26 +193,30 @@ class StockService {
       const { _id, ...rest } = body
 
       if (oldStock) {
-        const endOfDayPrice = await this.getEndOfDayPrice(oldStock.code)
-        const newBody = await CurrentStockService.convertBodyToUpdate(
-          oldStock,
-          rest,
-          endOfDayPrice,
-          isBuy
-        )
-
-        if (newBody) {
-          await CurrentStockService.updateCurrentStock(oldStock.code, newBody, session)
-
-          const stock = await Stocks.findByIdAndUpdate(
-            new Types.ObjectId(id),
-            { ...rest },
-            { new: true, session }
+        const oldBalance = oldStock.orderPrice * oldStock.volume
+        const newBalance = body.orderPrice * body.volume
+        if (await this.checkBalanceUpdate(oldBalance, newBalance)) {
+          const endOfDayPrice = await this.getEndOfDayPrice(oldStock.code)
+          const newBody = await CurrentStockService.convertBodyToUpdate(
+            oldStock,
+            rest,
+            endOfDayPrice,
+            isBuy
           )
-          await session?.commitTransaction()
-          const convertStock = stock?.toObject()
-          return convertStock
+          if (newBody) {
+            await CurrentStockService.updateCurrentStock(oldStock.code, newBody, session)
+
+            const stock = await Stocks.findByIdAndUpdate(
+              new Types.ObjectId(id),
+              { ...rest },
+              { new: true, session }
+            )
+            await session?.commitTransaction()
+            const convertStock = stock?.toObject()
+            return convertStock
+          }
         }
+        throw new BadRequest("You don't have enough money to do")
       }
       return null
     } catch (error: any) {
@@ -262,36 +282,65 @@ class StockService {
     return data
   }
 
-  static getSellStockBalance = async (): Promise<{ totalSell: number; totalBuy: number }> => {
-    const sellStockBalance: { totalSell: number; totalBuy: number }[] = await Stocks.aggregate([
-      {
-        $match: {
-          isDeleted: false
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalSell: {
-            $sum: {
-              $cond: [
-                { $eq: ['$status', 'Sell'] }, // condition
-                { $multiply: ['$sellPrice', '$volume'] } // if true
-              ]
-            }
-          },
-          totalBuy: {
-            $sum: {
-              $cond: [
-                { $eq: ['$status', 'Buy'] }, // condition
-                { $multiply: ['$orderPrice', '$volume'] } // if true
-              ]
-            }
-          }
+  static getStockBalance = async (): Promise<{ order: number; sell: number; waiting: number }> => {
+    // const balance: { sell: number; buy: number }[] = await Stocks.aggregate([
+    //   {
+    //     $match: {
+    //       isDeleted: false
+    //     }
+    //   },
+    //   {
+    //     $group: {
+    //       _id: null,
+    //       sell: {
+    //         $sum: {
+    //           $cond: [
+    //             { $eq: ['$status', 'Sell'] }, // condition
+    //             { $multiply: ['$sellPrice', '$volume'] } // if true
+    //           ]
+    //         }
+    //       },
+    //       buy: {
+    //         $sum: {
+    //           $cond: [
+    //             { $eq: ['$status', 'Buy'] }, // condition
+    //             { $multiply: ['$orderPrice', '$volume'] } // if true
+    //           ]
+    //         }
+    //       },
+    //       waiting: {
+    //         $sum: {
+    //           $cond: [
+    //             { $eq: ['$status', 'Sell'] }, // condition
+    //             { $multiply: ['$sellPrice', '$volume'] } // if true
+    //           ]
+    //         }
+    //       }
+    //     }
+    //   }
+    // ])
+    const stocks = await this.getAllStocks({ page: 0, size: 100000000 })
+
+    let order = 0
+    let sell = 0
+    let waiting = 0
+    console.log(stocks)
+
+    stocks.data.forEach((item) => {
+      if (item.status === 'Buy') {
+        order += item.orderPrice * item.volume
+      }
+      if (item.status === 'Sell') {
+        sell += item.orderPrice * item.volume
+        if (countDays(item.date) <= 2) {
+          waiting += item.orderPrice * item.volume
         }
       }
-    ])
-    return sellStockBalance[0]
+    })
+
+    console.log(order, sell, waiting)
+
+    return { order, sell, waiting }
   }
 }
 

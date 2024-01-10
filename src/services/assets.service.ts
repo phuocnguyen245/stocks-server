@@ -3,11 +3,11 @@ import StockService from './stocks.service.ts'
 
 class AssetsService {
   static getAsset = async () => {
-    const paymentBalance = await PaymentService.getBalance()
-    const stockBalance = await StockService.getSellStockBalance()
+    const payment = await PaymentService.getBalance()
+    const stock = await StockService.getStockBalance()
     return {
-      paymentBalance,
-      stockBalance
+      payment,
+      stock
     }
   }
 }

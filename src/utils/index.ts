@@ -1,3 +1,4 @@
+import moment from 'moment'
 import crypto from 'node:crypto'
 const pickKeysInObject = <T extends object, K extends keyof T>({
   object,
@@ -29,4 +30,25 @@ const convertToDecimal = (value: string | number, decimal = 2): number => {
   return Number(Number(value).toFixed(2))
 }
 
-export { pickKeysInObject, generateKey, dateStringToNumber, convertToDecimal }
+const countDays = (startDate: string, endDate = moment().toISOString()): number => {
+  let start = moment(startDate).utcOffset(420).startOf('day')
+  const end = moment(endDate).utcOffset(420).startOf('day')
+  let diffDays = 0
+
+  const isAfternoon = Number(moment(endDate).format('HH')) >= 12 ? 0.5 : 0
+
+  if (start.isSame(end)) {
+    return isAfternoon
+  }
+
+  while (start.isBefore(end)) {
+    if (start.day() !== 0 && start.day() !== 6) {
+      diffDays++
+    }
+    start = start.add(1, 'days')
+  }
+
+  return diffDays + isAfternoon
+}
+
+export { pickKeysInObject, generateKey, dateStringToNumber, convertToDecimal, countDays }
