@@ -283,48 +283,11 @@ class StockService {
   }
 
   static getStockBalance = async (): Promise<{ order: number; sell: number; waiting: number }> => {
-    // const balance: { sell: number; buy: number }[] = await Stocks.aggregate([
-    //   {
-    //     $match: {
-    //       isDeleted: false
-    //     }
-    //   },
-    //   {
-    //     $group: {
-    //       _id: null,
-    //       sell: {
-    //         $sum: {
-    //           $cond: [
-    //             { $eq: ['$status', 'Sell'] }, // condition
-    //             { $multiply: ['$sellPrice', '$volume'] } // if true
-    //           ]
-    //         }
-    //       },
-    //       buy: {
-    //         $sum: {
-    //           $cond: [
-    //             { $eq: ['$status', 'Buy'] }, // condition
-    //             { $multiply: ['$orderPrice', '$volume'] } // if true
-    //           ]
-    //         }
-    //       },
-    //       waiting: {
-    //         $sum: {
-    //           $cond: [
-    //             { $eq: ['$status', 'Sell'] }, // condition
-    //             { $multiply: ['$sellPrice', '$volume'] } // if true
-    //           ]
-    //         }
-    //       }
-    //     }
-    //   }
-    // ])
     const stocks = await this.getAllStocks({ page: 0, size: 100000000 })
 
     let order = 0
     let sell = 0
     let waiting = 0
-    console.log(stocks)
 
     stocks.data.forEach((item) => {
       if (item.status === 'Buy') {
@@ -338,9 +301,7 @@ class StockService {
       }
     })
 
-    console.log(order, sell, waiting)
-
-    return { order, sell, waiting }
+    return { order, sell: sell * (100 - 0.0025), waiting }
   }
 }
 

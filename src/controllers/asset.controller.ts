@@ -6,9 +6,7 @@ class AssetController {
   static getAsset = async (req: Request, res: Response) => {
     const data = await AssetsService.getAsset()
     return new OK({
-      data: {
-        ...data
-      }
+      data
     }).send(res)
   }
 }
