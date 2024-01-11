@@ -4,13 +4,38 @@ import { CurrentStocks } from '../models/currentStock.model.ts'
 import { Stock, type CurrentStock, PagePagination } from '../types/types.js'
 import { convertToDecimal } from '../utils/index.ts'
 import StockService from './stocks.service.ts'
+import RedisHandler from '../config/redis.ts'
 
 class CurrentStockService {
+  static redisHandler = new RedisHandler()
+
   static getCurrentStocks = async (pagination: PagePagination<CurrentStock>) => {
     const { page, size, sort, orderBy } = pagination
     const sortPage = page || 0
     const sortSize = size || 10
 
+    const isHaveCurrentStock = await this.redisHandler.get('update-countdown')
+
+    if (!isHaveCurrentStock) {
+      const currentStockRedis = await this.redisHandler.get('current')
+      if (currentStockRedis) {
+        const currentStock = JSON.parse(currentStockRedis)
+        const stockPromises = currentStock.map(async (stock: string) => {
+          const price = await StockService.getEndOfDayPrice(stock)
+          return { [stock]: price }
+        })
+        const resolvedStockPromises = await Promise.all(stockPromises)
+        const data = resolvedStockPromises.reduce((acc, cur) => ({ ...acc, ...cur }), {})
+
+        const updateStockPromises = currentStock.map(async (stock: string) => {
+          return await this.updateCurrentStockByDay(stock, data[stock])
+        })
+
+        await Promise.all(updateStockPromises)
+      }
+
+      await this.redisHandler.save('update-countdown', JSON.stringify(true))
+    }
     const [data, totalItems] = await Promise.all([
       await CurrentStocks.find()
         .sort({
@@ -21,6 +46,11 @@ class CurrentStockService {
         .lean(),
       await CurrentStocks.count()
     ])
+    const codes = data.map((item) => item.code)
+    await this.redisHandler.save('current', JSON.stringify(codes))
+
+    const expiredTime = StockService.getExpiredTime()
+    await this.redisHandler.redis.expire(`stocks-update-countdown`, expiredTime)
     return {
       data,
       page: sortPage,
@@ -246,6 +276,27 @@ class CurrentStockService {
       },
       session
     )
+  }
+
+  static updateCurrentStockByDay = async (code: string, marketPrice: number) => {
+    const foundCurrentStock = await this.getCurrentStockByCode(code)
+    if (!foundCurrentStock) {
+      throw new NotFound('Stock not found')
+    }
+    const newBody: CurrentStock = {
+      code,
+      marketPrice,
+      averagePrice: foundCurrentStock.averagePrice,
+      ratio: convertToDecimal(
+        (marketPrice - foundCurrentStock.averagePrice) / foundCurrentStock.averagePrice
+      ),
+      volume: foundCurrentStock.volume,
+      investedValue: convertToDecimal(
+        (marketPrice - foundCurrentStock.averagePrice) * foundCurrentStock.volume
+      )
+    }
+    const updatedStock = await this.updateCurrentStock(code, newBody)
+    return updatedStock
   }
 }
 export default CurrentStockService

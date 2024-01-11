@@ -45,14 +45,21 @@ class StockService {
     return false
   }
 
-  static getExpiredTime = () => {
+  static getExpiredTime = (hour = 16) => {
     let remainingMilliseconds
-    const now = new Date()
-    const currentHour = now.getHours() // Get the current hour (0-23)
-    if (currentHour < 18) {
-      remainingMilliseconds = (18 - currentHour) * 60 * 60 * 1000
+    const now = moment().utcOffset(420)
+    const currentHour = now.hours()
+    const minutes = now.minutes()
+    const seconds = now.seconds()
+
+    if (currentHour < hour) {
+      remainingMilliseconds =
+        (hour - currentHour) * 60 * 60 * 1000 - (60 - minutes) * 60 * 1000 - (60 - seconds) * 1000
     } else {
-      remainingMilliseconds = (24 - currentHour + 18) * 60 * 60 * 1000
+      remainingMilliseconds =
+        (24 - currentHour + hour) * 60 * 60 * 1000 -
+        (60 - minutes) * 60 * 1000 -
+        (60 - seconds) * 1000
     }
     return Math.round(remainingMilliseconds / 1000)
   }
@@ -65,13 +72,12 @@ class StockService {
 
   static getEndOfDayStock = async (code: string) => {
     const foundStock = await this.redisHandler.get(code)
+    const today = moment().utcOffset(420).format('YYYY-MM-DD')
     if (foundStock) {
       return JSON.parse(foundStock)
     }
 
     const expiredTime = this.getExpiredTime()
-    const today = moment().format('YYYY-MM-DD')
-    console.log(today)
 
     try {
       if (process.env.FIRE_ANT_KEY) {
