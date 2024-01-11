@@ -17,9 +17,8 @@ class CurrentStockService {
     const isHaveCurrentStock = await this.redisHandler.get('update-countdown')
 
     if (!isHaveCurrentStock) {
-      const currentStockRedis = await this.redisHandler.get('current')
-      if (currentStockRedis) {
-        const currentStock = JSON.parse(currentStockRedis)
+      const currentStock = await this.redisHandler.get('current')
+      if (currentStock) {
         const stockPromises = currentStock.map(async (stock: string) => {
           const price = await StockService.getEndOfDayPrice(stock)
           return { [stock]: price }
@@ -34,23 +33,26 @@ class CurrentStockService {
         await Promise.all(updateStockPromises)
       }
 
-      await this.redisHandler.save('update-countdown', JSON.stringify(true))
+      await this.redisHandler.save('update-countdown', true)
     }
+
     const [data, totalItems] = await Promise.all([
-      await CurrentStocks.find()
+      CurrentStocks.find()
         .sort({
           [`${sort ?? 'createdAt'}`]: orderBy ?? 'desc'
         })
         .limit(sortSize)
         .skip(sortPage * sortSize)
         .lean(),
-      await CurrentStocks.count()
+      CurrentStocks.count()
     ])
+
     const codes = data.map((item) => item.code)
-    await this.redisHandler.save('current', JSON.stringify(codes))
+    await this.redisHandler.save('current', codes)
 
     const expiredTime = StockService.getExpiredTime()
-    await this.redisHandler.redis.expire(`stocks-update-countdown`, expiredTime)
+    await this.redisHandler.setExpired(`stocks-update-countdown`, expiredTime)
+
     return {
       data,
       page: sortPage,
@@ -299,4 +301,5 @@ class CurrentStockService {
     return updatedStock
   }
 }
+
 export default CurrentStockService

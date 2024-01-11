@@ -9,7 +9,10 @@ import CurrentStockService from '../services/currentStock.service.ts'
 const message = {
   NOTFOUND: "Stock or Current Stock wasn't found",
   DELETED: 'Stock has been deleted',
-  MISSING_CODE: 'Missing code'
+  MISSING_CODE: 'Missing code',
+  WATCH_LIST: 'Get watch list successfully',
+  STATISTIC: 'Get statistic successfully',
+  UPDATED: 'Stock has successfully updated'
 }
 
 class StocksController {
@@ -97,7 +100,7 @@ class StocksController {
 
     const updatedStock = await StockService.updateStock(id, stock)
 
-    return new UPDATED({ data: updatedStock }).send(res)
+    return new UPDATED({ data: updatedStock, message: message.UPDATED }).send(res)
   }
 
   static remove = async (req: Request, res: Response) => {
@@ -121,8 +124,14 @@ class StocksController {
       data: {
         data,
         totalItems: data.length
-      }
+      },
+      message: message.STATISTIC
     }).send(res)
+  }
+
+  static getWatchLists = async (req: Request, res: Response) => {
+    const watchLists = await StockService.getWatchList()
+    return new OK({ data: watchLists, message: message.WATCH_LIST }).send(res)
   }
 }
 

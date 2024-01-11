@@ -11,9 +11,9 @@ class RedisHandler {
     this.redis.connect()
   }
 
-  save = async (key: string, value: string) => {
+  save = async (key: string, value: unknown) => {
     try {
-      ;(await this.redis).SET(`stocks-${key}`, value)
+      return await this.redis.SET(`stocks-${key}`, JSON.stringify(value))
     } catch (error) {
       throw new Error('Redis Error: ' + error)
     }
@@ -21,8 +21,19 @@ class RedisHandler {
 
   get = async (key: string) => {
     try {
-      const data = (await this.redis).GET(`stocks-${key}`)
-      return data
+      const data = await this.redis.GET(`stocks-${key}`)
+      if (data) {
+        return JSON.parse(data)
+      }
+      return null
+    } catch (error) {
+      throw new Error('Redis Error: ' + error)
+    }
+  }
+
+  setExpired = async (key: string, expired: number) => {
+    try {
+      await this.redis.expire(`stocks-${key}`, expired)
     } catch (error) {
       throw new Error('Redis Error: ' + error)
     }

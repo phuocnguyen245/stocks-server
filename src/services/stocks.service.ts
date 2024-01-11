@@ -64,6 +64,30 @@ class StockService {
     return Math.round(remainingMilliseconds / 1000)
   }
 
+  static getWatchList = async () => {
+    const redisCode = 'watch-lists'
+    const foundWatchList = await this.redisHandler.get(redisCode)
+    if (foundWatchList) {
+      return foundWatchList
+    }
+    const expiredTime = this.getExpiredTime()
+    try {
+      const FIRE_ANT_KEY = process.env.FIRE_ANT_KEY
+      if (FIRE_ANT_KEY) {
+        const response = await axios.get(`https://restv2.fireant.vn/me/watchlists`, {
+          headers: {
+            Authorization: `Bearer ${FIRE_ANT_KEY}`
+          }
+        })
+        await this.redisHandler.save(redisCode, (response.data as EndOfDayStock[]).reverse())
+        await this.redisHandler.setExpired(`stocks-${redisCode}`, expiredTime)
+        return response.data
+      }
+    } catch (error) {
+      throw new Error(error as string)
+    }
+  }
+
   static getEndOfDayPrice = async (code: string) => {
     const endOfDayStocks: EndOfDayStock[] = await this.getEndOfDayStock(code)
     const endOfDayPrice = endOfDayStocks[endOfDayStocks.length - 1].priceClose
@@ -74,26 +98,23 @@ class StockService {
     const foundStock = await this.redisHandler.get(code)
     const today = moment().utcOffset(420).format('YYYY-MM-DD')
     if (foundStock) {
-      return JSON.parse(foundStock)
+      return foundStock
     }
 
     const expiredTime = this.getExpiredTime()
-
     try {
-      if (process.env.FIRE_ANT_KEY) {
+      const FIRE_ANT_KEY = process.env.FIRE_ANT_KEY
+      if (FIRE_ANT_KEY) {
         const response = await axios.get(
           `https://restv2.fireant.vn/symbols/${code}/historical-quotes?startDate=2021-01-05&endDate=${today}&offset=0&limit=250`,
           {
             headers: {
-              Authorization: `Bearer ${process.env.FIRE_ANT_KEY}`
+              Authorization: `Bearer ${FIRE_ANT_KEY}`
             }
           }
         )
-        await this.redisHandler.save(
-          code,
-          JSON.stringify((response.data as EndOfDayStock[]).reverse())
-        )
-        await this.redisHandler.redis.expire(`stocks-${code}`, expiredTime)
+        await this.redisHandler.save(code, (response.data as EndOfDayStock[]).reverse())
+        await this.redisHandler.setExpired(`stocks-${code}`, expiredTime)
         return response.data
       }
     } catch (error) {
@@ -261,7 +282,7 @@ class StockService {
     const foundStockStatistics = await this.redisHandler.get(redisCode)
 
     if (foundStockStatistics) {
-      return JSON.parse(foundStockStatistics)
+      return foundStockStatistics
     }
 
     const stock = (await this.getEndOfDayStock(code)) as EndOfDayStock[]
@@ -280,10 +301,9 @@ class StockService {
     ])
 
     const expiredTime = this.getExpiredTime()
-    const dataString = JSON.stringify(data)
 
-    await this.redisHandler.save(redisCode, dataString)
-    await this.redisHandler.redis.expire(`stocks-${redisCode}`, expiredTime)
+    await this.redisHandler.save(redisCode, data)
+    await this.redisHandler.setExpired(`stocks-${redisCode}`, expiredTime)
 
     return data
   }
