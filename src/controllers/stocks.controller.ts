@@ -4,8 +4,6 @@ import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
 import StockService from '../services/stocks.service.ts'
 import { PagePagination, Stock } from '../types/types.js'
-import CurrentStockService from '../services/currentStock.service.ts'
-
 const message = {
   NOTFOUND: "Stock or Current Stock wasn't found",
   DELETED: 'Stock has been deleted',
@@ -132,6 +130,12 @@ class StocksController {
   static getWatchLists = async (req: Request, res: Response) => {
     const watchLists = await StockService.getWatchList()
     return new OK({ data: watchLists, message: message.WATCH_LIST }).send(res)
+  }
+
+  static getIndicators = async (req: Request, res: Response) => {
+    const { code } = req.params
+    const data = await StockService.getIndicators(code)
+    return new OK({ data: data }).send(res)
   }
 }
 

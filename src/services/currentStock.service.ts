@@ -10,11 +10,12 @@ class CurrentStockService {
   static redisHandler = new RedisHandler()
 
   static getCurrentStocks = async (pagination: PagePagination<CurrentStock>) => {
+    const redisCode = 'update-countdown'
     const { page, size, sort, orderBy } = pagination
     const sortPage = page || 0
     const sortSize = size || 10
 
-    const isHaveCurrentStock = await this.redisHandler.get('update-countdown')
+    const isHaveCurrentStock = await this.redisHandler.get(redisCode)
 
     if (!isHaveCurrentStock) {
       const currentStock = await this.redisHandler.get('current')
@@ -33,7 +34,7 @@ class CurrentStockService {
         await Promise.all(updateStockPromises)
       }
 
-      await this.redisHandler.save('update-countdown', true)
+      await this.redisHandler.save(redisCode, true)
     }
 
     const [data, totalItems] = await Promise.all([
@@ -51,7 +52,7 @@ class CurrentStockService {
     await this.redisHandler.save('current', codes)
 
     const expiredTime = StockService.getExpiredTime()
-    await this.redisHandler.setExpired(`stocks-update-countdown`, expiredTime)
+    await this.redisHandler.setExpired(redisCode, expiredTime)
 
     return {
       data,

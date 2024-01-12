@@ -8,6 +8,7 @@ import CurrentStockService from './currentStock.service.ts'
 import { BadRequest } from '../core/error.response.ts'
 import AssetsService from './assets.service.ts'
 import moment from 'moment'
+import Indicator from './utils/index.ts'
 
 interface EndOfDayStock {
   date: string
@@ -57,7 +58,7 @@ class StockService {
         (hour - currentHour) * 60 * 60 * 1000 - (60 - minutes) * 60 * 1000 - (60 - seconds) * 1000
     } else {
       remainingMilliseconds =
-        (24 - currentHour + hour) * 60 * 60 * 1000 -
+        (23 - currentHour + hour) * 60 * 60 * 1000 -
         (60 - minutes) * 60 * 1000 -
         (60 - seconds) * 1000
     }
@@ -80,7 +81,7 @@ class StockService {
           }
         })
         await this.redisHandler.save(redisCode, (response.data as EndOfDayStock[]).reverse())
-        await this.redisHandler.setExpired(`stocks-${redisCode}`, expiredTime)
+        await this.redisHandler.setExpired(redisCode, expiredTime)
         return response.data
       }
     } catch (error) {
@@ -104,6 +105,7 @@ class StockService {
     const expiredTime = this.getExpiredTime()
     try {
       const FIRE_ANT_KEY = process.env.FIRE_ANT_KEY
+
       if (FIRE_ANT_KEY) {
         const response = await axios.get(
           `https://restv2.fireant.vn/symbols/${code}/historical-quotes?startDate=2021-01-05&endDate=${today}&offset=0&limit=250`,
@@ -114,7 +116,7 @@ class StockService {
           }
         )
         await this.redisHandler.save(code, (response.data as EndOfDayStock[]).reverse())
-        await this.redisHandler.setExpired(`stocks-${code}`, expiredTime)
+        await this.redisHandler.setExpired(code, expiredTime)
         return response.data
       }
     } catch (error) {
@@ -277,7 +279,7 @@ class StockService {
     }
   }
 
-  static getStockStatistics = async (code: string) => {
+  static getStockStatistics = async (code: string): Promise<any[][]> => {
     const redisCode = `${code}-statistic`
     const foundStockStatistics = await this.redisHandler.get(redisCode)
 
@@ -303,7 +305,7 @@ class StockService {
     const expiredTime = this.getExpiredTime()
 
     await this.redisHandler.save(redisCode, data)
-    await this.redisHandler.setExpired(`stocks-${redisCode}`, expiredTime)
+    await this.redisHandler.setExpired(redisCode, expiredTime)
 
     return data
   }
@@ -328,6 +330,13 @@ class StockService {
     })
 
     return { order, sell: sell * (100 - 0.0025), waiting }
+  }
+
+  static getIndicators = async (code: string) => {
+    const codePrices = await this.getStockStatistics(code)
+    const indicator = new Indicator({ data: codePrices }) // replace with your actual data
+    const result = indicator.getResult()
+    return { ...result, lastPrice: codePrices[codePrices.length - 1][4] }
   }
 }
 
