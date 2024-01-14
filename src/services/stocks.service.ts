@@ -333,10 +333,19 @@ class StockService {
   }
 
   static getIndicators = async (code: string) => {
+    const redisCode = `${code}-indicators`
+    const foundRedisData = await this.redisHandler.get(redisCode)
+    if (foundRedisData) {
+      return foundRedisData
+    }
     const codePrices = await this.getStockStatistics(code)
     const indicator = new Indicator({ data: codePrices }) // replace with your actual data
     const result = indicator.getResult()
-    return { ...result, lastPrice: codePrices[codePrices.length - 1][4] }
+    const data = { ...result, lastPrice: codePrices[codePrices.length - 1][4] }
+    const expiredTime = this.getExpiredTime()
+    await this.redisHandler.save(redisCode, JSON.stringify(data))
+    await this.redisHandler.setExpired(redisCode, expiredTime)
+    return data
   }
 }
 

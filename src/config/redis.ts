@@ -6,7 +6,11 @@ class RedisHandler {
     this.redis = createClient({
       url: 'redis://default:@localhost:6379'
     })
-    this.redis.on('error', (err) => console.log('Redis Client Error', err))
+    this.redis.on('error', (err) => {
+      console.log('Redis Client Error', err)
+      this.redis.disconnect()
+      throw new Error(err)
+    })
     this.redis.on('connect', () => console.log('Connected to Redis'))
     this.redis.connect()
   }
