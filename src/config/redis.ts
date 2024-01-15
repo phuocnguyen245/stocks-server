@@ -27,7 +27,8 @@ class RedisHandler {
     try {
       const data = await this.redis.GET(`stocks-${key}`)
       if (data) {
-        return JSON.parse(data)
+        const parseData = await JSON.parse(data)
+        return parseData
       }
       return null
     } catch (error) {
