@@ -46,7 +46,7 @@ class StockService {
     return false
   }
 
-  static getExpiredTime = (hour = 16) => {
+  static getExpiredTime = (hour = 17) => {
     let remainingMilliseconds
     const now = moment().utcOffset(420)
     const currentHour = now.hours()
@@ -55,12 +55,10 @@ class StockService {
 
     if (currentHour < hour) {
       remainingMilliseconds =
-        (hour - currentHour) * 60 * 60 * 1000 - (60 - minutes) * 60 * 1000 - (60 - seconds) * 1000
+        (hour - currentHour) * 60 * 60 * 1000 - (minutes * 60 * 1000 + seconds * 1000)
     } else {
       remainingMilliseconds =
-        (23 - currentHour + hour) * 60 * 60 * 1000 -
-        (60 - minutes) * 60 * 1000 -
-        (60 - seconds) * 1000
+        (24 - currentHour + hour) * 60 * 60 * 1000 - (minutes * 60 * 1000 + seconds * 1000)
     }
     return Math.round(remainingMilliseconds / 1000)
   }
@@ -132,6 +130,7 @@ class StockService {
 
     const sortPage = page || 0
     const sortSize = size || 10
+    const order = orderBy || 'desc'
 
     const filter: FilterQuery<Stock> = {
       isDeleted: false,
@@ -142,7 +141,7 @@ class StockService {
       await Stocks.find(filter)
         .sort([
           ['status', 1],
-          [`${sort ?? 'createdAt'}`, orderBy ?? 1]
+          [`${sort ?? 'createdAt'}`, order]
         ])
         .limit(sortSize)
         .skip(sortPage * sortSize)

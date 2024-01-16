@@ -33,7 +33,6 @@ class CurrentStockService {
 
         await Promise.all(updateStockPromises)
       }
-
       await this.redisHandler.save(redisCode, true)
     }
 
@@ -48,6 +47,8 @@ class CurrentStockService {
       CurrentStocks.count()
     ])
 
+    const sortArr = data.sort((a, b) => b.volume * b.averagePrice - a.volume * a.averagePrice)
+
     const codes = data.map((item) => item.code)
     await this.redisHandler.save('current', codes)
 
@@ -55,7 +56,7 @@ class CurrentStockService {
     await this.redisHandler.setExpired(redisCode, expiredTime)
 
     return {
-      data,
+      data: sortArr,
       page: sortPage,
       size: sortSize,
       totalItems
