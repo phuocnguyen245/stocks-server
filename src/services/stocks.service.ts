@@ -8,8 +8,9 @@ import CurrentStockService from './currentStock.service.ts'
 import { BadRequest } from '../core/error.response.ts'
 import AssetsService from './assets.service.ts'
 import moment from 'moment'
-import Indicator from './utils/index.ts'
-
+import Indicator from './utils/indicator.ts'
+import https from 'https'
+import { filterBoardStocks } from './utils/index.ts'
 interface EndOfDayStock {
   date: string
   priceOpen: number
@@ -345,6 +346,30 @@ class StockService {
     const expiredTime = this.getExpiredTime()
     await this.redisHandler.save(redisCode, JSON.stringify(data))
     await this.redisHandler.setExpired(redisCode, expiredTime)
+    return data
+  }
+
+  static getBoardStocks = async (pagination: { page: number; size: number; search: string }) => {
+    const code = 'board'
+    const foundRedisData = await this.redisHandler.get(code)
+    if (foundRedisData) {
+      const parseRedisData = JSON.parse(foundRedisData)
+      const data = filterBoardStocks(parseRedisData.data, pagination)
+
+      return data
+    }
+
+    const response = await axios.get(
+      `https://exchange-dr.stockproxx.com/api/StockExchange/liveboard`,
+      {
+        httpsAgent: new https.Agent({
+          rejectUnauthorized: false
+        })
+      }
+    )
+
+    const data = filterBoardStocks(response.data.data, pagination)
+    await this.redisHandler.save(code, JSON.stringify(response.data))
     return data
   }
 }

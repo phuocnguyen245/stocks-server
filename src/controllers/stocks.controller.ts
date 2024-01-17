@@ -135,7 +135,18 @@ class StocksController {
   static getIndicators = async (req: Request, res: Response) => {
     const { code } = req.params
     const data = await StockService.getIndicators(code)
-    return new OK({ data: data }).send(res)
+    return new OK({ data }).send(res)
+  }
+
+  static getBoardStocks = async (req: Request, res: Response) => {
+    const search = req.query.search as string
+    const { page = 0, size = 10 } = req.query
+    const data = await StockService.getBoardStocks({
+      search,
+      page: Number(page),
+      size: Number(size)
+    })
+    return new OK({ data }).send(res)
   }
 }
 
