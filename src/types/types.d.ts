@@ -1,4 +1,5 @@
 import { Types } from 'mongoose'
+import { Request } from 'express'
 
 type Status = 'Buy' | 'Sell'
 type OrderBy = 'asc' | 'desc'
@@ -14,6 +15,8 @@ interface User {
   name: string
   username: string
   password: string
+  isDeleted: boolean
+  // roleId: Types.ObjectId
 }
 
 interface Stock {
@@ -52,6 +55,10 @@ interface Assets {
   availableBalance: number
 }
 
+interface RequestWithUser extends Request {
+  id: string
+}
+
 export type {
   User,
   Stock,
@@ -61,5 +68,6 @@ export type {
   Assets,
   Status,
   OrderBy,
-  PagePagination
+  PagePagination,
+  RequestWithUser
 }

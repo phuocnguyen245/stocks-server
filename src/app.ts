@@ -6,10 +6,9 @@ import { default as helmet } from 'helmet'
 import morgan from 'morgan'
 import { instanceMongodb } from './config/database.ts'
 import router from './routes/index.ts'
-import StockService from './services/stocks.service.ts'
-import CurrentStockService from './services/currentStock.service.ts'
 const app = express()
 instanceMongodb
+dotenv.config()
 
 //init middleware
 app.use(cors())
@@ -18,7 +17,6 @@ app.use(helmet())
 app.use(compression())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
-dotenv.config()
 //router
 app.use('/api/v1', router)
 

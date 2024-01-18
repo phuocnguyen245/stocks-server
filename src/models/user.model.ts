@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose, { Types } from 'mongoose'
 import type { User } from '../types/types.js'
 const { Schema } = mongoose
 
@@ -13,12 +13,22 @@ const UserSchema = new Schema<User>(
     username: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
+      unique: true
     },
     password: {
       type: String,
       required: true
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      required: true
     }
+    // roleId: {
+    //   type: Types.ObjectId,
+    //   required: true
+    // }
   },
   {
     timestamps: true,
