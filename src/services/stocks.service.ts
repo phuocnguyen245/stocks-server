@@ -23,31 +23,31 @@ interface EndOfDayStock {
 class StockService {
   static redisHandler = new RedisHandler()
 
-  static getBalance = async () => {
-    const assets = await AssetsService.getAsset()
+  static getBalance = async (userId: string) => {
+    const assets = await AssetsService.getAsset(userId)
     const paymentBalance = assets.payment / 1000
     const stocksBalance = assets.stock.sell - assets.stock.order - assets.stock.waiting
     const totalBalance = paymentBalance + stocksBalance
     return totalBalance
   }
 
-  static checkBalanceBuy = async (balance: number) => {
-    const totalBalance = await this.getBalance()
+  static checkBalanceBuy = async (balance: number, userId: string) => {
+    const totalBalance = await this.getBalance(userId)
     if (totalBalance >= balance) {
       return true
     }
     return false
   }
 
-  static checkBalanceUpdate = async (oldBalance: number, balance: number) => {
-    const totalBalance = await this.getBalance()
+  static checkBalanceUpdate = async (oldBalance: number, balance: number, userId: string) => {
+    const totalBalance = await this.getBalance(userId)
     if (totalBalance + oldBalance >= balance) {
       return true
     }
     return false
   }
 
-  static getExpiredTime = (hour = 17) => {
+  static getExpiredTime = (hour = 15) => {
     let remainingMilliseconds
     const now = moment().utcOffset(420)
     const currentHour = now.hours()
@@ -56,10 +56,10 @@ class StockService {
 
     if (currentHour < hour) {
       remainingMilliseconds =
-        (hour - currentHour) * 60 * 60 * 1000 - (minutes * 60 * 1000 + seconds * 1000)
+        (hour - currentHour) * 60 * 60 * 1000 - (minutes * 58 * 1000 + seconds * 1000)
     } else {
       remainingMilliseconds =
-        (24 - currentHour + hour) * 60 * 60 * 1000 - (minutes * 60 * 1000 + seconds * 1000)
+        (24 - currentHour + hour) * 60 * 60 * 1000 - (minutes * 58 * 1000 + seconds * 1000)
     }
     return Math.round(remainingMilliseconds / 1000)
   }
@@ -127,13 +127,14 @@ class StockService {
     pagination: PagePagination<Stock>,
     extraFilter?: FilterQuery<Stock>
   ) => {
-    const { page, size, sort, orderBy } = pagination
+    const { page, size, sort, orderBy, userId } = pagination
 
     const sortPage = page || 0
     const sortSize = size || 10
     const order = orderBy || 'desc'
 
     const filter: FilterQuery<Stock> = {
+      userId: new Types.ObjectId(userId),
       isDeleted: false,
       ...extraFilter
     }
@@ -164,7 +165,7 @@ class StockService {
     return await Stocks.findById(new Types.ObjectId(id)).lean()
   }
 
-  static createStock = async (body: Stock) => {
+  static createStock = async (body: Stock, userId: string) => {
     const session = await mongoose.startSession()
     session.startTransaction()
     try {
@@ -172,7 +173,7 @@ class StockService {
       const endOfDayPrice = await this.getEndOfDayPrice(body.code)
       let stock: Stock[] | undefined
 
-      const foundCurrentStock = await CurrentStockService.getCurrentStockByCode(body.code)
+      const foundCurrentStock = await CurrentStockService.getCurrentStockByCode(body.code, userId)
 
       if (!isBuy && foundCurrentStock) {
         const newVolume = foundCurrentStock.volume - body.volume
@@ -183,15 +184,20 @@ class StockService {
       }
 
       if (isBuy && endOfDayPrice > 0) {
-        if (await this.checkBalanceBuy(body.orderPrice * body.volume)) {
-          stock = (await Stocks.create([{ ...body, marketPrice: endOfDayPrice }], {
-            session
-          })) as any
+        if (await this.checkBalanceBuy(body.orderPrice * body.volume, userId)) {
+          stock = (await Stocks.create(
+            [{ ...body, userId: new Types.ObjectId(userId), marketPrice: endOfDayPrice }],
+            {
+              session
+            }
+          )) as any
         } else {
-          throw new BadRequest("You don't have enough money to do ")
+          throw new BadRequest("You don't have enough money to do")
         }
       } else {
-        stock = (await Stocks.create([{ ...body }], { session })) as any
+        stock = (await Stocks.create([{ ...body, userId: new Types.ObjectId(userId) }], {
+          session
+        })) as any
       }
 
       if (stock?.length) {
@@ -200,6 +206,7 @@ class StockService {
           foundCurrentStock,
           endOfDayPrice,
           isBuy,
+          userId,
           session
         )
       }
@@ -212,7 +219,7 @@ class StockService {
     }
   }
 
-  static updateStock = async (id: string, body: Stock) => {
+  static updateStock = async (id: string, body: Stock, userId: string) => {
     const session = await mongoose.startSession()
     session.startTransaction()
     try {
@@ -224,16 +231,17 @@ class StockService {
       if (oldStock) {
         const oldBalance = oldStock.orderPrice * oldStock.volume
         const newBalance = body.orderPrice * body.volume
-        if (await this.checkBalanceUpdate(oldBalance, newBalance)) {
+        if (await this.checkBalanceUpdate(oldBalance, newBalance, userId)) {
           const endOfDayPrice = await this.getEndOfDayPrice(oldStock.code)
           const newBody = await CurrentStockService.convertBodyToUpdate(
             oldStock,
             rest,
             endOfDayPrice,
-            isBuy
+            isBuy,
+            userId
           )
           if (newBody) {
-            await CurrentStockService.updateCurrentStock(oldStock.code, newBody, session)
+            await CurrentStockService.updateCurrentStock(oldStock.code, newBody, userId, session)
 
             const stock = await Stocks.findByIdAndUpdate(
               new Types.ObjectId(id),
@@ -256,11 +264,11 @@ class StockService {
     }
   }
 
-  static removeStock = async (id: string, foundStock: Stock) => {
+  static removeStock = async (id: string, foundStock: Stock, userId: string) => {
     const session = await mongoose.startSession()
     session.startTransaction()
     try {
-      await CurrentStockService.updateRemoveStock(foundStock, session)
+      await CurrentStockService.updateRemoveStock(foundStock, userId, session)
 
       const data = await Stocks.findByIdAndUpdate(
         new Types.ObjectId(id),
@@ -310,8 +318,10 @@ class StockService {
     return data
   }
 
-  static getStockBalance = async (): Promise<{ order: number; sell: number; waiting: number }> => {
-    const stocks = await this.getAllStocks({ page: 0, size: 100000000 })
+  static getStockBalance = async (
+    userId: string
+  ): Promise<{ order: number; sell: number; waiting: number }> => {
+    const stocks = await this.getAllStocks({ page: 0, size: 100000000, userId })
 
     let order = 0
     let sell = 0
@@ -369,7 +379,9 @@ class StockService {
     )
 
     const data = filterBoardStocks(response.data.data, pagination)
+    const expiredTime = this.getExpiredTime()
     await this.redisHandler.save(code, JSON.stringify(response.data))
+    await this.redisHandler.setExpired(code, expiredTime)
     return data
   }
 }

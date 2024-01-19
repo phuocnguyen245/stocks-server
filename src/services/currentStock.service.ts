@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose, { Types } from 'mongoose'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CurrentStocks } from '../models/currentStock.model.ts'
 import { Stock, type CurrentStock, PagePagination } from '../types/types.js'
@@ -10,15 +10,15 @@ class CurrentStockService {
   static redisHandler = new RedisHandler()
 
   static getCurrentStocks = async (pagination: PagePagination<CurrentStock>) => {
-    const redisCode = 'update-countdown'
-    const { page, size, sort, orderBy } = pagination
+    const { page, size, sort, orderBy, userId } = pagination
+    const redisCode = `update-countdown-${userId}`
     const sortPage = page || 0
     const sortSize = size || 10
 
     const isHaveCurrentStock = await this.redisHandler.get(redisCode)
 
     if (!isHaveCurrentStock) {
-      const currentStock = await this.redisHandler.get('current')
+      const currentStock = await this.redisHandler.get(`current-${userId}`)
       if (currentStock) {
         const stockPromises = currentStock.map(async (stock: string) => {
           const price = await StockService.getEndOfDayPrice(stock)
@@ -28,7 +28,7 @@ class CurrentStockService {
         const data = resolvedStockPromises.reduce((acc, cur) => ({ ...acc, ...cur }), {})
 
         const updateStockPromises = currentStock.map(async (stock: string) => {
-          return await this.updateCurrentStockByDay(stock, data[stock])
+          return await this.updateCurrentStockByDay(stock, data[stock], userId)
         })
 
         await Promise.all(updateStockPromises)
@@ -37,20 +37,20 @@ class CurrentStockService {
     }
 
     const [data, totalItems] = await Promise.all([
-      CurrentStocks.find()
+      CurrentStocks.find({ userId: new Types.ObjectId(userId) })
         .sort({
           [`${sort ?? 'createdAt'}`]: orderBy ?? 'desc'
         })
         .limit(sortSize)
         .skip(sortPage * sortSize)
         .lean(),
-      CurrentStocks.count()
+      CurrentStocks.count({ userId: new Types.ObjectId(userId) })
     ])
 
     const sortArr = data.sort((a, b) => b.volume * b.averagePrice - a.volume * a.averagePrice)
 
     const codes = data.map((item) => item.code)
-    await this.redisHandler.save('current', codes)
+    await this.redisHandler.save(`current-${userId}`, codes)
 
     const expiredTime = StockService.getExpiredTime()
     await this.redisHandler.setExpired(redisCode, expiredTime)
@@ -63,34 +63,45 @@ class CurrentStockService {
     }
   }
 
-  static getCurrentStockByCode = async (code: string) => {
-    const stock = await CurrentStocks.findOne({ code }).lean()
+  static getCurrentStockByCode = async (code: string, userId: string) => {
+    const stock = await CurrentStocks.findOne({ code, userId: new Types.ObjectId(userId) }).lean()
     return stock
   }
 
   static createCurrentStock = async (
     body: CurrentStock,
+    userId: string,
     session?: mongoose.mongo.ClientSession
   ) => {
-    const stock = await CurrentStocks.create([{ ...body }], { session: session || undefined })
+    const stock = await CurrentStocks.create([{ ...body, userId: new Types.ObjectId(userId) }], {
+      session: session || undefined
+    })
     return stock[0].toObject()
   }
 
   static updateCurrentStock = async (
     code: string,
     body: CurrentStock,
+    userId: string,
     session?: mongoose.mongo.ClientSession
   ) => {
     const updatedCurrentStock = await CurrentStocks.findOneAndUpdate(
-      { code },
+      { code, userId: new Types.ObjectId(userId) },
       { ...body },
       { isNew: true, session: session || undefined }
     )
     return updatedCurrentStock?.toObject()
   }
 
-  static removeCurrentStock = async (code: string, session?: mongoose.mongo.ClientSession) => {
-    return await CurrentStocks.findOneAndDelete({ code }, { session: session || undefined })
+  static removeCurrentStock = async (
+    code: string,
+    userId: string,
+    session?: mongoose.mongo.ClientSession
+  ) => {
+    return await CurrentStocks.findOneAndDelete(
+      { code, userId: new Types.ObjectId(userId) },
+      { session: session || undefined }
+    )
   }
 
   static convertBodyToCreate = async (
@@ -98,6 +109,7 @@ class CurrentStockService {
     foundCurrentStock: CurrentStock | null,
     endOfDayPrice: number,
     isBuy: boolean,
+    userId: string,
     session?: mongoose.mongo.ClientSession
   ) => {
     const { code, orderPrice, volume } = stock
@@ -121,14 +133,16 @@ class CurrentStockService {
         }
 
         if (newVolume === 0) {
-          this.removeCurrentStock(code, session)
+          this.removeCurrentStock(code, userId, session)
         }
       }
       const ratio = convertToDecimal(
-        (foundCurrentStock.marketPrice - newAveragePrice) / newAveragePrice
+        (foundCurrentStock.marketPrice - newAveragePrice) / newAveragePrice,
+        5
       )
       const investedValue = convertToDecimal(
-        (foundCurrentStock.marketPrice - newAveragePrice) * newVolume
+        (foundCurrentStock.marketPrice - newAveragePrice) * newVolume,
+        3
       )
       const currentStock: CurrentStock = {
         code,
@@ -138,7 +152,12 @@ class CurrentStockService {
         marketPrice: foundCurrentStock.marketPrice,
         investedValue
       }
-      const updatedStock = await CurrentStockService.updateCurrentStock(code, currentStock, session)
+      const updatedStock = await CurrentStockService.updateCurrentStock(
+        code,
+        currentStock,
+        userId,
+        session
+      )
       await session?.commitTransaction()
       return updatedStock
     }
@@ -153,11 +172,11 @@ class CurrentStockService {
       averagePrice: convertToDecimal(orderPrice),
       marketPrice: endOfDayPrice,
       volume,
-      ratio: convertToDecimal((endOfDayPrice - orderPrice) / orderPrice),
-      investedValue: (endOfDayPrice - orderPrice) * volume
+      ratio: (endOfDayPrice - orderPrice) / orderPrice,
+      investedValue: convertToDecimal((endOfDayPrice - orderPrice) * volume, 3)
     }
 
-    const createdStock = await CurrentStockService.createCurrentStock(currentStock, session)
+    const createdStock = await CurrentStockService.createCurrentStock(currentStock, userId, session)
     await session?.commitTransaction()
     return createdStock
   }
@@ -166,9 +185,10 @@ class CurrentStockService {
     oldStock: Stock,
     body: Stock,
     endOfDayPrice: number,
-    isBuy: boolean
+    isBuy: boolean,
+    userId: string
   ): Promise<CurrentStock | null> => {
-    const foundCurrentStock = await this.getCurrentStockByCode(oldStock.code)
+    const foundCurrentStock = await this.getCurrentStockByCode(oldStock.code, userId)
 
     if (foundCurrentStock) {
       const { volume, orderPrice } = body
@@ -190,11 +210,10 @@ class CurrentStockService {
           averagePrice: convertToDecimal(newAveragePrice),
           marketPrice: foundCurrentStock.marketPrice,
           investedValue: convertToDecimal(
-            (foundCurrentStock.marketPrice - newAveragePrice) * newVolume
+            (foundCurrentStock.marketPrice - newAveragePrice) * newVolume,
+            3
           ),
-          ratio: convertToDecimal(
-            (foundCurrentStock.marketPrice - newAveragePrice) / newAveragePrice
-          )
+          ratio: (foundCurrentStock.marketPrice - newAveragePrice) / newAveragePrice
         }
         return currentStock
       }
@@ -207,11 +226,10 @@ class CurrentStockService {
         averagePrice: convertToDecimal(foundCurrentStock.averagePrice),
         marketPrice: endOfDayPrice,
         investedValue: convertToDecimal(
-          (endOfDayPrice - foundCurrentStock.averagePrice) * newVolume
+          (endOfDayPrice - foundCurrentStock.averagePrice) * newVolume,
+          3
         ),
-        ratio: convertToDecimal(
-          (endOfDayPrice - foundCurrentStock.averagePrice) / foundCurrentStock.averagePrice
-        )
+        ratio: (endOfDayPrice - foundCurrentStock.averagePrice) / foundCurrentStock.averagePrice
       }
       return currentStock
     }
@@ -219,9 +237,13 @@ class CurrentStockService {
     return null
   }
 
-  static updateRemoveStock = async (stock: Stock, session: mongoose.mongo.ClientSession) => {
+  static updateRemoveStock = async (
+    stock: Stock,
+    userId: string,
+    session: mongoose.mongo.ClientSession
+  ) => {
     const isBuy = stock.status === 'Buy'
-    const foundCurrentStock = await this.getCurrentStockByCode(stock.code)
+    const foundCurrentStock = await this.getCurrentStockByCode(stock.code, userId)
     const marketPrice = await StockService.getEndOfDayPrice(stock.code)
     if (!foundCurrentStock) {
       if (!isBuy) {
@@ -233,8 +255,9 @@ class CurrentStockService {
           code: stock.code,
           marketPrice: await StockService.getEndOfDayPrice(stock.code),
           volume: stock.volume,
-          ratio: convertToDecimal((marketPrice - stock.orderPrice) / stock.orderPrice)
+          ratio: (marketPrice - stock.orderPrice) / stock.orderPrice
         },
+        userId,
         session
       )
     }
@@ -251,12 +274,13 @@ class CurrentStockService {
           ratio: foundCurrentStock.ratio,
           investedValue: convertToDecimal((marketPrice - averagePrice) * newVolume)
         },
+        userId,
         session
       )
     }
     const newVolume = foundCurrentStock.volume - stock.volume
     if (newVolume === 0) {
-      return this.removeCurrentStock(stock.code, session)
+      return this.removeCurrentStock(stock.code, userId, session)
     }
     const averagePrice = convertToDecimal(
       (foundCurrentStock.averagePrice * foundCurrentStock.volume -
@@ -278,12 +302,13 @@ class CurrentStockService {
         ratio,
         investedValue
       },
+      userId,
       session
     )
   }
 
-  static updateCurrentStockByDay = async (code: string, marketPrice: number) => {
-    const foundCurrentStock = await this.getCurrentStockByCode(code)
+  static updateCurrentStockByDay = async (code: string, marketPrice: number, userId: string) => {
+    const foundCurrentStock = await this.getCurrentStockByCode(code, userId)
     if (!foundCurrentStock) {
       throw new NotFound('Stock not found')
     }
@@ -299,7 +324,7 @@ class CurrentStockService {
         (marketPrice - foundCurrentStock.averagePrice) * foundCurrentStock.volume
       )
     }
-    const updatedStock = await this.updateCurrentStock(code, newBody)
+    const updatedStock = await this.updateCurrentStock(code, newBody, userId)
     return updatedStock
   }
 }

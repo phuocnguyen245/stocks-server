@@ -25,10 +25,10 @@ const StockSchema = new Schema<Stock>(
       type: Number,
       default: 0
     },
-    // userId: {
-    //   type: Schema.Types.ObjectId,
-    //   ref: 'User',
-    // },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
     isDeleted: {
       type: Boolean,
       default: false

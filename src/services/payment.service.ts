@@ -7,10 +7,11 @@ class PaymentService {
     pagination: PagePagination<PaymentsType>,
     extraFilter?: FilterQuery<PaymentsType>
   ) => {
-    const { page, size, sort, orderBy } = pagination
+    const { page, size, sort, orderBy, userId } = pagination
     const sortPage = page || 0
     const sortSize = size || 10
     const filter: FilterQuery<PaymentsType> = {
+      userId: new Types.ObjectId(userId),
       isDeleted: false,
       ...extraFilter
     }
@@ -25,9 +26,11 @@ class PaymentService {
     return data
   }
 
-  static createPayment = async (body: PaymentsType) => {
+  static createPayment = async (body: PaymentsType, userId: string) => {
     const { name, balance, type, date } = body
-    const payment = (await Payments.create({ name, balance, type, date })).toObject()
+    const payment = (
+      await Payments.create({ name, balance, type, date, userId: new Types.ObjectId(userId) })
+    ).toObject()
     return payment
   }
 
@@ -45,10 +48,10 @@ class PaymentService {
     return await Payments.findByIdAndUpdate(new Types.ObjectId(id), { isDeleted: true })
   }
 
-  static getBalance = async () => {
+  static getBalance = async (userId: string) => {
     const result = await Payments.aggregate([
       {
-        $match: { isDeleted: false }
+        $match: { isDeleted: false, userId: new Types.ObjectId(userId) }
       },
       {
         $group: {
@@ -62,7 +65,7 @@ class PaymentService {
       }
     ])
 
-    return result[0]?.totalBalance || 0 // Return the ca
+    return result[0]?.totalBalance || 0
   }
 }
 export default PaymentService

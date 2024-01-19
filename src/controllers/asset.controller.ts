@@ -1,10 +1,12 @@
-import { Request, Response } from 'express'
-import AssetsService from '../services/assets.service.ts'
+import { Response } from 'express'
 import { OK } from '../core/success.response.ts'
+import AssetsService from '../services/assets.service.ts'
+import { RequestWithUser } from '../types/types.js'
 
 class AssetController {
-  static getAsset = async (req: Request, res: Response) => {
-    const data = await AssetsService.getAsset()
+  static getAsset = async (req: RequestWithUser, res: Response) => {
+    const { id: userId } = req
+    const data = await AssetsService.getAsset(userId)
     return new OK({
       data
     }).send(res)

@@ -11,7 +11,6 @@ const CurrentStockSchema = new Schema<CurrentStock>(
   {
     code: {
       type: String,
-      unique: true,
       required: true
     },
     averagePrice: {
@@ -30,7 +29,7 @@ const CurrentStockSchema = new Schema<CurrentStock>(
       type: Number,
       required: true
     },
-    // userId: Types.ObjectId,
+    userId: Types.ObjectId,
     investedValue: {
       type: Number,
       required: true

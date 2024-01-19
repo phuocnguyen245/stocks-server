@@ -1,4 +1,4 @@
-import mongoose, { Types } from 'mongoose'
+import mongoose from 'mongoose'
 import type { User } from '../types/types.js'
 const { Schema } = mongoose
 

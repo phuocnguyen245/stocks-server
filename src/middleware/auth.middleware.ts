@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
+import { RequestWithUser } from '../types/types.js'
 
 const message = {
   UNAUTHORIZED: 'UNAUTHORIZED',
@@ -37,25 +38,22 @@ class AuthMiddleware {
 
   static checkAuth = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log(req.body.refreshToken)
-
       const header = req?.header('Authorization')
       if (!header) {
         throw Error(message.MISSING_TOKEN)
       }
       const token = header.split(' ')[1]
-      const { _id } = await this.verifyToken(token, 'public')
+      const { _id } = (await this.verifyToken(token, 'public')) as { _id: string }
 
-      const obj: any = { ...req, id: _id }
-      req = obj
+      ;(req as RequestWithUser).id = _id
       return next()
     } catch (error: any) {
       try {
         const refreshToken = req.body?.refreshToken
         if (refreshToken) {
-          const { _id } = await this.verifyToken(refreshToken, 'secret')
-          const obj: any = { ...req, id: _id }
-          req = obj
+          const { _id } = (await this.verifyToken(refreshToken, 'secret')) as { _id: string }
+
+          ;(req as RequestWithUser).id = _id
           return next()
         }
         return res.status(401).json({ message: error?.message, subMessage: message.MISSING_TOKEN })

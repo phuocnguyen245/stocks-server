@@ -3,7 +3,7 @@ import { Types } from 'mongoose'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
 import StockService from '../services/stocks.service.ts'
-import { PagePagination, Stock } from '../types/types.js'
+import { PagePagination, RequestWithUser, Stock, StockWithUserId } from '../types/types.js'
 const message = {
   NOTFOUND: "Stock or Current Stock wasn't found",
   DELETED: 'Stock has been deleted',
@@ -44,11 +44,14 @@ class StocksController {
     return data
   }
 
-  static getAll = async (req: Request, res: Response) => {
+  static getAll = async (req: RequestWithUser, res: Response) => {
+    const userId = req.id
     const { page, size, sort, orderBy } = req.query as unknown as PagePagination<Stock>
+
     const numberPage = Number(page)
     const numberSize = Number(size)
     const data = await StockService.getAllStocks({
+      userId,
       page: numberPage,
       size: numberSize,
       sort,
@@ -60,8 +63,9 @@ class StocksController {
     }).send(res)
   }
 
-  static getById = async (req: Request, res: Response) => {
+  static getById = async (req: RequestWithUser, res: Response) => {
     const { id } = req.params
+    const { id: userId } = req
     if (!id) {
       return new BadRequest('Id is missing')
     }
@@ -73,20 +77,21 @@ class StocksController {
     return new OK({ data: foundStock }).send(res)
   }
 
-  static create = async (req: Request, res: Response) => {
-    const { body } = req
+  static create = async (req: RequestWithUser, res: Response) => {
+    const { body, id: userId } = req
 
     const data = this.formatBody(body)
 
-    const newStock = await StockService.createStock(data)
+    const newStock = await StockService.createStock(data, userId)
 
     return new CREATED({ data: newStock }).send(res)
   }
 
-  static update = async (req: Request, res: Response) => {
+  static update = async (req: RequestWithUser, res: Response) => {
     const {
       body,
-      params: { id }
+      params: { id },
+      id: userId
     } = req
 
     const foundStock = await StockService.getStockById(id)
@@ -96,18 +101,19 @@ class StocksController {
 
     const stock = this.formatBody(body, foundStock)
 
-    const updatedStock = await StockService.updateStock(id, stock)
+    const updatedStock = await StockService.updateStock(id, stock, userId)
 
     return new UPDATED({ data: updatedStock, message: message.UPDATED }).send(res)
   }
 
-  static remove = async (req: Request, res: Response) => {
+  static remove = async (req: RequestWithUser, res: Response) => {
     const { id } = req.params
+    const { id: userId } = req
     const foundStock = await StockService.getStockById(id)
     if (!foundStock) {
       throw new NotFound(message.NOTFOUND)
     }
-    await StockService.removeStock(id, foundStock)
+    await StockService.removeStock(id, foundStock, userId)
 
     return new DELETED({ message: message.DELETED }).send(res)
   }
@@ -138,7 +144,7 @@ class StocksController {
     return new OK({ data }).send(res)
   }
 
-  static getBoardStocks = async (req: Request, res: Response) => {
+  static getBoardStocks = async (req: RequestWithUser, res: Response) => {
     const search = req.query.search as string
     const { page = 0, size = 10 } = req.query
     const data = await StockService.getBoardStocks({

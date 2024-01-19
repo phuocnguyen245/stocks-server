@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose, { Types } from 'mongoose'
 import type { Assets as AssetsType } from '../types/types.js'
 const { Schema } = mongoose
 
@@ -9,7 +9,8 @@ const NAME = {
 
 const AssetsSchema = new Schema<AssetsType>(
   {
-    availableBalance: Number
+    availableBalance: Number,
+    userId: Types.ObjectId
   },
   {
     timestamps: true,

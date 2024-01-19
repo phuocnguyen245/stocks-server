@@ -9,6 +9,7 @@ interface PagePagination<T> {
   size: number
   sort?: keyof T
   orderBy?: OrderBy
+  userId: string
 }
 
 interface User {
@@ -33,6 +34,10 @@ interface Stock {
   isDeleted?: boolean
 }
 
+interface StockWithUserId extends Stock {
+  userId: string
+}
+
 interface CurrentStock {
   code: string
   averagePrice: number
@@ -49,10 +54,12 @@ interface Payments {
   balance: number
   isDeleted: boolean
   date: string
+  userId: string
 }
 
 interface Assets {
   availableBalance: number
+  userId: string
 }
 
 interface RequestWithUser extends Request {
@@ -69,5 +76,6 @@ export type {
   Status,
   OrderBy,
   PagePagination,
-  RequestWithUser
+  RequestWithUser,
+  StockWithUserId
 }

@@ -1,8 +1,8 @@
 import { Request, Response } from 'express'
-import PaymentService from '../services/payment.service.ts'
-import { CREATED, OK, UPDATED } from '../core/success.response.ts'
-import { OrderBy, PagePagination, Payments } from '../types/types.js'
 import { BadRequest, NotFound } from '../core/error.response.ts'
+import { CREATED, OK, UPDATED } from '../core/success.response.ts'
+import PaymentService from '../services/payment.service.ts'
+import { PagePagination, Payments, RequestWithUser } from '../types/types.js'
 
 const message = {
   NOT_FOUND: 'Payment not found',
@@ -15,14 +15,15 @@ const message = {
 }
 
 class PaymentController {
-  static getAll = async (req: Request, res: Response) => {
+  static getAll = async (req: RequestWithUser, res: Response) => {
     const { page, size, sort, orderBy } = req.query as unknown as PagePagination<Payments>
-
+    const { id: userId } = req
     const payments = await PaymentService.getAllPayments({
       page,
       size,
       sort,
-      orderBy
+      orderBy,
+      userId
     })
 
     return new OK({
@@ -45,9 +46,9 @@ class PaymentController {
     return new OK({ data: foundPayment, message: message.GET_BY_ID }).send(res)
   }
 
-  static create = async (req: Request, res: Response) => {
-    const body = req.body
-    const createdPayment = await PaymentService.createPayment(body)
+  static create = async (req: RequestWithUser, res: Response) => {
+    const { body, id: userId } = req
+    const createdPayment = await PaymentService.createPayment(body, userId)
     return new CREATED({ data: createdPayment, message: message.CREATED }).send(res)
   }
 

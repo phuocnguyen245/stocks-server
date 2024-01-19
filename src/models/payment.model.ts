@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose, { Types } from 'mongoose'
 import type { Payments as PaymentsType } from '../types/types.js'
 const { Schema } = mongoose
 
@@ -10,6 +10,7 @@ const NAME = {
 // type 0 = top up, type 1 = withdraw
 const PaymentSchema = new Schema<PaymentsType>(
   {
+    userId: Types.ObjectId,
     name: String,
     balance: Number,
     type: {
