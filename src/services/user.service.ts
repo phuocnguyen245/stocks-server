@@ -61,7 +61,7 @@ class UserService {
     return {
       ...newUser,
       tokens: {
-        ...(await AuthMiddleware.generateTokens({ _id: newUser._id }, '10s', '7d'))
+        ...(await AuthMiddleware.generateTokens({ _id: newUser._id }, '2h', '7d'))
       }
     }
   }

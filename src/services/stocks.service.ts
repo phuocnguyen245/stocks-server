@@ -1,16 +1,16 @@
 import axios from 'axios'
+import moment from 'moment'
 import mongoose, { FilterQuery, Types } from 'mongoose'
 import RedisHandler from '../config/redis.ts'
+import { BadRequest } from '../core/error.response.ts'
 import { Stocks } from '../models/stock.model.ts'
 import type { PagePagination, Stock } from '../types/types.js'
 import { countDays, dateStringToNumber } from '../utils/index.ts'
-import CurrentStockService from './currentStock.service.ts'
-import { BadRequest } from '../core/error.response.ts'
 import AssetsService from './assets.service.ts'
-import moment from 'moment'
+import CurrentStockService from './currentStock.service.ts'
+import ThirdPartyService from './thirdParty.service.ts'
+import { filterBoardStocks, findDuplicateStocks } from './utils/index.ts'
 import Indicator from './utils/indicator.ts'
-import https from 'https'
-import { filterBoardStocks } from './utils/index.ts'
 interface EndOfDayStock {
   date: string
   priceOpen: number
@@ -64,8 +64,8 @@ class StockService {
     return Math.round(remainingMilliseconds / 1000)
   }
 
-  static getWatchList = async () => {
-    const redisCode = 'watch-lists'
+  static getFireAntWatchList = async () => {
+    const redisCode = 'fa-watch-lists'
     const foundWatchList = await this.redisHandler.get(redisCode)
     if (foundWatchList) {
       return foundWatchList
@@ -88,6 +88,36 @@ class StockService {
     }
   }
 
+  static getWatchList = async () => {
+    const redisCode = 'watch-lists'
+    const foundWatchList = await this.redisHandler.get(redisCode)
+    if (foundWatchList) {
+      return foundWatchList
+    }
+    const boardList = await ThirdPartyService.getBoard()
+    const faWatchList = await this.getFireAntWatchList()
+    const stocksInList = faWatchList.flatMap((item: any) => item?.symbols) || []
+    const sortedList = stocksInList.sort((a: string, b: string) => (a > b ? 1 : -1))
+    const arr = findDuplicateStocks(boardList.data, sortedList)
+    const watchList = faWatchList.map((item: any) => {
+      const data: any = []
+      item.symbols.forEach((code: string) => {
+        arr.forEach((arrItem: any) => {
+          if (arrItem.liveboard.Symbol === code) {
+            data.push(arrItem)
+          }
+        })
+      })
+      return {
+        ...item,
+        stocks: data
+      }
+    })
+    const expiredTime = this.getExpiredTime()
+    await this.redisHandler.save(redisCode, watchList)
+    await this.redisHandler.setExpired(redisCode, expiredTime)
+  }
+
   static getEndOfDayPrice = async (code: string) => {
     const endOfDayStocks: EndOfDayStock[] = await this.getEndOfDayStock(code)
     const endOfDayPrice = endOfDayStocks[endOfDayStocks.length - 1].priceClose
@@ -106,17 +136,10 @@ class StockService {
       const FIRE_ANT_KEY = process.env.FIRE_ANT_KEY
 
       if (FIRE_ANT_KEY) {
-        const response = await axios.get(
-          `https://restv2.fireant.vn/symbols/${code}/historical-quotes?startDate=2021-01-05&endDate=${today}&offset=0&limit=250`,
-          {
-            headers: {
-              Authorization: `Bearer ${FIRE_ANT_KEY}`
-            }
-          }
-        )
-        await this.redisHandler.save(code, (response.data as EndOfDayStock[]).reverse())
+        const response = await ThirdPartyService.getStockHistorical(code, today)
+        await this.redisHandler.save(code, response.reverse() as EndOfDayStock[])
         await this.redisHandler.setExpired(code, expiredTime)
-        return response.data
+        return response
       }
     } catch (error) {
       throw new Error(error as string)
@@ -192,7 +215,7 @@ class StockService {
             }
           )) as any
         } else {
-          throw new BadRequest("You don't have enough money to do")
+          throw Error("You don't have enough money to do")
         }
       } else {
         stock = (await Stocks.create([{ ...body, userId: new Types.ObjectId(userId) }], {
@@ -213,7 +236,7 @@ class StockService {
       return stock
     } catch (error: any) {
       await session.abortTransaction()
-      throw new BadRequest(error)
+      throw new BadRequest(error.message)
     } finally {
       session.endSession()
     }
@@ -253,7 +276,7 @@ class StockService {
             return convertStock
           }
         }
-        throw new BadRequest("You don't have enough money to do")
+        throw Error("You don't have enough money to do")
       }
       return null
     } catch (error: any) {
@@ -332,14 +355,14 @@ class StockService {
         order += item.orderPrice * item.volume
       }
       if (item.status === 'Sell') {
-        sell += item.orderPrice * item.volume
+        sell += item.sellPrice * item.volume
         if (countDays(item.date) <= 2) {
-          waiting += item.orderPrice * item.volume
+          waiting += item.sellPrice * item.volume
         }
       }
     })
 
-    return { order, sell: sell * (100 - 0.0025), waiting }
+    return { order, sell: (sell * (100 - 0.25)) / 100, waiting: (waiting * (100 - 0.25)) / 100 }
   }
 
   static getIndicators = async (code: string) => {
@@ -365,22 +388,14 @@ class StockService {
     if (foundRedisData) {
       const parseRedisData = JSON.parse(foundRedisData)
       const data = filterBoardStocks(parseRedisData.data, pagination)
-
       return data
     }
 
-    const response = await axios.get(
-      `https://exchange-dr.stockproxx.com/api/StockExchange/liveboard`,
-      {
-        httpsAgent: new https.Agent({
-          rejectUnauthorized: false
-        })
-      }
-    )
+    const response = await ThirdPartyService.getBoard()
 
-    const data = filterBoardStocks(response.data.data, pagination)
+    const data = filterBoardStocks(response.data, pagination)
     const expiredTime = this.getExpiredTime()
-    await this.redisHandler.save(code, JSON.stringify(response.data))
+    await this.redisHandler.save(code, JSON.stringify(response))
     await this.redisHandler.setExpired(code, expiredTime)
     return data
   }

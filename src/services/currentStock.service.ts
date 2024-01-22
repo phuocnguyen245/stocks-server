@@ -18,8 +18,9 @@ class CurrentStockService {
     const isHaveCurrentStock = await this.redisHandler.get(redisCode)
 
     if (!isHaveCurrentStock) {
-      const currentStock = await this.redisHandler.get(`current-${userId}`)
-      if (currentStock) {
+      const currentStock = (await this.redisHandler.get(`current-${userId}`)) as string[]
+
+      if (currentStock && currentStock?.length) {
         const stockPromises = currentStock.map(async (stock: string) => {
           const price = await StockService.getEndOfDayPrice(stock)
           return { [stock]: price }

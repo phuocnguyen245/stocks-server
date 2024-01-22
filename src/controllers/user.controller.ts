@@ -45,7 +45,7 @@ class UserController {
 
   static generateTokensByRefreshToken = async (req: RequestWithUser, res: Response) => {
     const id = req.id
-    const tokens = await AuthMiddleware.generateTokens({ _id: id }, '10s', '7d')
+    const tokens = await AuthMiddleware.generateTokens({ _id: id }, '2h', '7d')
     return new OK({ data: tokens }).send(res)
   }
 }
