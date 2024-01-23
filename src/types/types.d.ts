@@ -46,6 +46,7 @@ interface CurrentStock {
   ratio: number
   investedValue?: number
   userId?: Types.ObjectId
+  stocks?: any[]
 }
 type PaymentType = 0 | 1
 interface Payments {

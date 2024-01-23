@@ -11,6 +11,7 @@ class CurrentStockService {
 
   static getCurrentStocks = async (pagination: PagePagination<CurrentStock>) => {
     const { page, size, sort, orderBy, userId } = pagination
+    const orderByNumber = orderBy === 'asc' ? 1 : -1
     const redisCode = `update-countdown-${userId}`
     const sortPage = page || 0
     const sortSize = size || 10
@@ -38,13 +39,39 @@ class CurrentStockService {
     }
 
     const [data, totalItems] = await Promise.all([
-      CurrentStocks.find({ userId: new Types.ObjectId(userId) })
-        .sort({
-          [`${sort ?? 'createdAt'}`]: orderBy ?? 'desc'
-        })
-        .limit(sortSize)
-        .skip(sortPage * sortSize)
-        .lean(),
+      CurrentStocks.aggregate([
+        {
+          $match: { userId: new Types.ObjectId(userId) }
+        },
+        {
+          $lookup: {
+            localField: 'code',
+            from: 'Stocks',
+            foreignField: 'code',
+            as: 'stocks',
+            pipeline: [
+              {
+                $match: {
+                  userId: new Types.ObjectId(userId),
+                  status: 'Buy',
+                  isDeleted: false
+                }
+              }
+            ]
+          }
+        },
+        {
+          $sort: {
+            [`${sort ?? 'createdAt'}`]: orderBy === 'asc' ? 1 : -1
+          }
+        },
+        {
+          $skip: sortPage * sortSize
+        },
+        {
+          $limit: sortSize
+        }
+      ]),
       CurrentStocks.count({ userId: new Types.ObjectId(userId) })
     ])
 

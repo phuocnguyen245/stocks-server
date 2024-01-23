@@ -94,8 +94,11 @@ class StockService {
     if (foundWatchList) {
       return foundWatchList
     }
-    const boardList = await ThirdPartyService.getBoard()
-    const faWatchList = await this.getFireAntWatchList()
+
+    const [boardList, faWatchList] = await Promise.all([
+      ThirdPartyService.getBoard(),
+      this.getFireAntWatchList()
+    ])
     const stocksInList = faWatchList.flatMap((item: any) => item?.symbols) || []
     const sortedList = stocksInList.sort((a: string, b: string) => (a > b ? 1 : -1))
     const arr = findDuplicateStocks(boardList.data, sortedList)

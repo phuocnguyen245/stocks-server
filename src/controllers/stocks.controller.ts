@@ -29,7 +29,7 @@ class StocksController {
       data = { ...currentStock }
     }
 
-    ;(Object.keys(body) as Array<keyof Stock>).forEach((item: keyof Stock) => {
+    ;((Object.keys(body) as Array<keyof Stock>) || [])?.forEach((item: keyof Stock) => {
       if (item === 'code' || item === 'date' || item === 'status') {
         return (data = { ...data, [item]: body[item] ?? '' })
       } else if (item === 'userId') {

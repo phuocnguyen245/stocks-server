@@ -21,6 +21,10 @@ const CurrentStockSchema = new Schema<CurrentStock>(
       type: Number,
       required: true
     },
+    stocks: {
+      type: Schema.Types.ObjectId,
+      ref: 'Stock'
+    },
     marketPrice: {
       type: Number,
       required: true
