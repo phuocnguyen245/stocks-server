@@ -87,10 +87,11 @@
     "strict": true /* Enable all strict type-checking options. */ /* Skip type checking .d.ts files that are included with TypeScript. */,
     "skipLibCheck": true /* Skip type checking all .d.ts files. */,
     "outDir": "./dist",
+    "rootDir": "./", // Source directory (where your TypeScript files are)
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "src/server.ts"], // Include TypeScript files from the 'src' directory
+  "include": ["src/**/*.ts", "./server.ts"], // Include TypeScript files from the 'src' directory
   "exclude": ["node_modules"], // Exclude 'node_modules' from compilation
   "ts-node": {
     // Tell ts-node CLI to install the --loader automatically
