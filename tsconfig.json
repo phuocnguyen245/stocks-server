@@ -3,7 +3,7 @@
     "target": "ES2018", // Set the target ECMAScript version
     "module": "CommonJS", // Specify the module system (Node.js uses commonjs)
     "outDir": "./dist", // Output directory for compiled files
-    "rootDir": "./", // Source directory (where your TypeScript files are)
+    "rootDir": "./src", // Source directory (where your TypeScript files are)
     "strict": true, // Enable strict type-checking
     "esModuleInterop": true, // Enable compatibility with commonjs modules
     "resolveJsonModule": true, // Allow importing JSON files
@@ -11,12 +11,11 @@
     "emitDeclarationOnly": true,
     "allowImportingTsExtensions": true,
     "declaration": true
-    // "moduleResolution": "Node16"
+    // "moduleResolution": "NodeNext"
   },
   "include": ["src/**/*.ts", "src/server.ts"], // Include TypeScript files from the 'src' directory
   "exclude": ["node_modules"], // Exclude 'node_modules' from compilation
   "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"
+    "esm": true
   }
 }

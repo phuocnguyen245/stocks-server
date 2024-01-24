@@ -7,7 +7,7 @@ import morgan from 'morgan'
 import { instanceMongodb } from './config/database.ts'
 import router from './routes/index.ts'
 const app = express()
-instanceMongodb
+// instanceMongodb
 dotenv.config()
 
 //init middleware
