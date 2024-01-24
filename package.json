@@ -1,6 +1,5 @@
 {
   "name": "e-commerce",
-  "type": "module",
   "version": "1.0.0",
   "description": "",
   "main": "server.ts",
@@ -8,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "npx tsc",
     "start": "node dist/server.js",
-    "dev": "nodemon server.ts"
+    "dev": "nodemon server.ts --exec"
   },
   "keywords": [],
   "author": "",
@@ -26,7 +25,8 @@
     "moment": "^2.30.1",
     "mongoose": "^7.5.1",
     "morgan": "^1.10.0",
-    "redis": "^4.6.12"
+    "redis": "^4.6.12",
+    "ts-node": "^10.9.2"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.0",
