@@ -4,7 +4,7 @@ class RedisHandler {
   redis: RedisClientType
   constructor() {
     this.redis = createClient({
-      url: 'redis://default:@localhost:6379'
+      url: 'redis://default:VdCWmrbVOUyVld5wjLrVBA2jMJ9oCq5C@redis-14062.c292.ap-southeast-1-1.ec2.cloud.redislabs.com:14062'
     })
     this.redis.on('error', (err) => {
       console.log('Redis Client Error', err)
