@@ -1,6 +1,11 @@
 import mongoose from 'mongoose'
-import config from './config.ts'
-const db = config?.db as any
+
+const db = {
+  username: 'root',
+  password: 'root',
+  host: 'cluster0.iq84qw3.mongodb.net',
+  database: 'stocks'
+}
 const connectionString = `mongodb+srv://${db?.username}:${db?.password}@${db?.host}/${db?.database}?retryWrites=true&w=majority`
 
 class MongoDatabase {
