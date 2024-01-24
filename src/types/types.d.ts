@@ -19,7 +19,11 @@ interface User {
   isDeleted: boolean
   // roleId: Types.ObjectId
 }
-
+interface Target {
+  name: string
+  price: number
+  volume: number
+}
 interface Stock {
   _id?: Types.ObjectId
   code: string
@@ -28,6 +32,8 @@ interface Stock {
   orderPrice: number
   sellPrice: number
   marketPrice?: number
+  take: Array<Target>
+  stop: Array<Target>
   ratio?: number
   status: Status
   userId?: Types.ObjectId
@@ -78,5 +84,6 @@ export type {
   OrderBy,
   PagePagination,
   RequestWithUser,
-  StockWithUserId
+  StockWithUserId,
+  Target
 }

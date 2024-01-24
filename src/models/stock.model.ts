@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import type { Stock } from '../types/types.js'
+import type { Stock, Target } from '../types/types.js'
 const { Schema } = mongoose
 
 const NAME = {
@@ -24,6 +24,16 @@ const StockSchema = new Schema<Stock>(
     ratio: {
       type: Number,
       default: 0
+    },
+    take: {
+      type: Schema.Types.Mixed,
+      default: [],
+      required: true
+    },
+    stop: {
+      type: Schema.Types.Mixed,
+      default: [],
+      required: true
     },
     userId: {
       type: Schema.Types.ObjectId,

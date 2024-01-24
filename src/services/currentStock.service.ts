@@ -272,18 +272,21 @@ class CurrentStockService {
   ) => {
     const isBuy = stock.status === 'Buy'
     const foundCurrentStock = await this.getCurrentStockByCode(stock.code, userId)
+
     const marketPrice = await StockService.getEndOfDayPrice(stock.code)
     if (!foundCurrentStock) {
       if (!isBuy) {
-        throw new NotFound('This stock is not available')
+        throw new Error('This stock is not available')
       }
+      const marketPrice = await StockService.getEndOfDayPrice(stock.code)
       return await this.createCurrentStock(
         {
           averagePrice: stock.orderPrice,
           code: stock.code,
-          marketPrice: await StockService.getEndOfDayPrice(stock.code),
+          marketPrice,
           volume: stock.volume,
-          ratio: (marketPrice - stock.orderPrice) / stock.orderPrice
+          ratio: (marketPrice - stock.orderPrice) / stock.orderPrice,
+          investedValue: convertToDecimal((marketPrice - stock.orderPrice) * stock.volume)
         },
         userId,
         session
@@ -307,9 +310,15 @@ class CurrentStockService {
       )
     }
     const newVolume = foundCurrentStock.volume - stock.volume
+
+    if (newVolume < 0) {
+      throw Error(`This stock is out of range`)
+    }
+
     if (newVolume === 0) {
       return this.removeCurrentStock(stock.code, userId, session)
     }
+
     const averagePrice = convertToDecimal(
       (foundCurrentStock.averagePrice * foundCurrentStock.volume -
         stock.volume * stock.orderPrice) /

@@ -306,8 +306,9 @@ class StockService {
 
       await session.commitTransaction()
       return data
-    } catch (error) {
-      return session.abortTransaction()
+    } catch (error: any) {
+      session.abortTransaction()
+      throw new BadRequest(error.message)
     } finally {
       session.endSession()
     }

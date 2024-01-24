@@ -1,9 +1,9 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import { Types } from 'mongoose'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
 import StockService from '../services/stocks.service.ts'
-import { PagePagination, RequestWithUser, Stock, StockWithUserId } from '../types/types.js'
+import { PagePagination, RequestWithUser, Stock, StockWithUserId, Target } from '../types/types.js'
 const message = {
   NOTFOUND: "Stock or Current Stock wasn't found",
   DELETED: 'Stock has been deleted',
@@ -22,7 +22,9 @@ class StocksController {
       orderPrice: 0,
       sellPrice: 0,
       status: 'Buy',
-      userId: new Types.ObjectId('657ec8a90ac6d9841f7c55cd')
+      userId: new Types.ObjectId('657ec8a90ac6d9841f7c55cd'),
+      stop: [],
+      take: []
     }
 
     if (currentStock) {
@@ -37,7 +39,14 @@ class StocksController {
           ...data,
           userId: new Types.ObjectId(body[item]) ?? data.userId
         })
+      } else if (item === 'take' || item === 'stop') {
+        return (data = {
+          ...data,
+          take: body.take,
+          stop: body.stop
+        })
       }
+
       return (data = { ...data, [item]: Number(body[item] ?? 0) })
     })
 
@@ -81,6 +90,7 @@ class StocksController {
     const { body, id: userId } = req
 
     const data = this.formatBody(body)
+    console.log(body, data)
 
     const newStock = await StockService.createStock(data, userId)
 
@@ -106,7 +116,7 @@ class StocksController {
     return new UPDATED({ data: updatedStock, message: message.UPDATED }).send(res)
   }
 
-  static remove = async (req: RequestWithUser, res: Response) => {
+  static remove = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     const { id } = req.params
     const { id: userId } = req
     const foundStock = await StockService.getStockById(id)
