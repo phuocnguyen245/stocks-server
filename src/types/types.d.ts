@@ -41,7 +41,7 @@ interface Stock {
 }
 
 interface StockWithUserId extends Stock {
-  userId: string
+  userId: Types.ObjectId
 }
 
 interface CurrentStock {
@@ -78,7 +78,7 @@ export type {
   Stock,
   CurrentStock,
   Payments,
-  PaymentsType,
+  PaymentType,
   Assets,
   Status,
   OrderBy,
