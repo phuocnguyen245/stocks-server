@@ -18,6 +18,11 @@ router.get(
   asyncHandler(StocksController.getIndicators)
 )
 router.get('/board', AuthMiddleware.checkAuth, asyncHandler(StocksController.getBoardStocks))
+router.get(
+  '/strong-stocks',
+  AuthMiddleware.checkAuth,
+  asyncHandler(StocksController.getStrongStocks)
+)
 
 router.post('/', AuthMiddleware.checkAuth, asyncHandler(StocksController.create))
 router.patch('/:id', AuthMiddleware.checkAuth, asyncHandler(StocksController.update))
