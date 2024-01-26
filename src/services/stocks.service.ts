@@ -445,14 +445,37 @@ class StockService {
     return keys
   }
 
-  static filterStrongStocks = async () => {
+  static filterStocks = async () => {
     const stocksIndicators = await this.getAllStocksIndicators()
     if (stocksIndicators?.length) {
       const strongStocks = stocksIndicators.filter((item: any) => {
-        const { rsi } = item
+        const { rsi, macd, mfi, stoch, stochRSI, ma, lastPrice } = item
         const averageRSI =
-          rsi.slice(rsi.length - 10).reduce((acc: number, item: number) => acc + item, 0) / 10
-        return averageRSI < 40
+          rsi.slice(rsi.length - 2).reduce((acc: number, item: number) => acc + item, 0) / 2
+
+        const macdLine = macd.macd[macd.macd.length - 1]
+        const signalLine = macd.signal[macd.signal.length - 1]
+
+        const averageMFI =
+          mfi.slice(mfi.length - 2).reduce((acc: number, item: number) => acc + item, 0) / 2
+
+        const stochDLine = stoch.d[stoch.d.length - 1]
+        const stochKLine = stoch.k[stoch.k.length - 1]
+
+        const stochRSIDLine = stochRSI.d[stochRSI.d.length - 1]
+        const stochRSIKLine = stochRSI.k[stochRSI.k.length - 1]
+
+        return (
+          averageRSI < 40 &&
+          macdLine - signalLine >= -1 &&
+          averageMFI < 40 &&
+          Math.abs(stochDLine - stochKLine) <= 5 &&
+          stochDLine < 40 &&
+          stochKLine < 40 &&
+          stochRSIDLine < 40 &&
+          stochRSIKLine < 40 &&
+          Math.abs(stochRSIDLine - stochRSIKLine) <= 5
+        )
       })
       return strongStocks.map((item) => item.code)
     }

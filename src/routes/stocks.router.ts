@@ -21,7 +21,7 @@ router.get('/board', AuthMiddleware.checkAuth, asyncHandler(StocksController.get
 router.get(
   '/strong-stocks',
   AuthMiddleware.checkAuth,
-  asyncHandler(StocksController.getStrongStocks)
+  asyncHandler(StocksController.getFilterStocks)
 )
 
 router.post('/', AuthMiddleware.checkAuth, asyncHandler(StocksController.create))

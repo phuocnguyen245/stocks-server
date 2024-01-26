@@ -165,8 +165,8 @@ class StocksController {
     return new OK({ data }).send(res)
   }
 
-  static getStrongStocks = async (req: Request, res: Response) => {
-    const data = await StockService.filterStrongStocks()
+  static getFilterStocks = async (req: Request, res: Response) => {
+    const data = await StockService.filterStocks()
     return new OK({ data }).send(res)
   }
 }
