@@ -164,6 +164,11 @@ class StocksController {
     })
     return new OK({ data }).send(res)
   }
+
+  static getFilterStocks = async (req: Request, res: Response) => {
+    const data = await StockService.filterStocks()
+    return new OK({ data }).send(res)
+  }
 }
 
 export default StocksController

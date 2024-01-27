@@ -7,7 +7,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "start": "nodemon ./src/server.ts --exec"
+    "start": "NODE_ENV=dev nodemon ./src/server.ts --exec",
+    "start:prod": "NODE_ENV=prod nodemon ./src/server.ts --exec"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +26,7 @@
     "moment": "^2.30.1",
     "mongoose": "^7.5.1",
     "morgan": "^1.10.0",
+    "node-cron": "^3.0.3",
     "redis": "^4.6.12",
     "ts-node": "^10.9.2",
     "tsx": "^4.7.0"
@@ -37,6 +39,7 @@
     "@types/jsonwebtoken": "^9.0.2",
     "@types/morgan": "^1.9.5",
     "@types/node": "^20.6.0",
+    "@types/node-cron": "^3.0.11",
     "concurrently": "^8.2.1",
     "nodemon": "^3.0.1",
     "typescript": "^5.2.2"

@@ -11,6 +11,8 @@ import CurrentStockService from './currentStock.service.ts'
 import ThirdPartyService from './thirdParty.service.ts'
 import { filterBoardStocks, findDuplicateStocks } from './utils/index.ts'
 import Indicator from './utils/indicator.ts'
+import cron from 'node-cron'
+
 interface EndOfDayStock {
   date: string
   priceOpen: number
@@ -370,16 +372,17 @@ class StockService {
   }
 
   static getIndicators = async (code: string) => {
-    const redisCode = `${code}-indicators`
+    const redisCode = `indicators-${code}`
     const foundRedisData = await this.redisHandler.get(redisCode)
 
     if (foundRedisData) {
       return JSON.parse(foundRedisData)
     }
+
     const codePrices = await this.getStockStatistics(code)
-    const indicator = new Indicator({ data: codePrices })
+    const indicator = new Indicator({ data: codePrices.slice(75) })
     const result = indicator.getResult()
-    const data = { ...result, lastPrice: codePrices[codePrices.length - 1][4] }
+    const data = { ...result, lastPrice: codePrices[codePrices.length - 1][4], code }
     const expiredTime = this.getExpiredTime()
     await this.redisHandler.save(redisCode, JSON.stringify(data))
     await this.redisHandler.setExpired(redisCode, expiredTime)
@@ -403,6 +406,95 @@ class StockService {
     await this.redisHandler.setExpired(code, expiredTime)
     return data
   }
+
+  static getAllStocksIndicators = async () => {
+    let length = 0
+    let halfArr = [] as any[]
+    let restArr = [] as any[]
+
+    do {
+      try {
+        const response = await StockService.getWatchList()
+        const arr = response?.flatMap((item: any) => item.symbols)
+        const uniqueArr = [...new Set(arr)] as string[]
+
+        const mid = Math.ceil(uniqueArr.length / 2)
+
+        halfArr = await Promise.all(
+          uniqueArr.slice(0, mid).map((code) => StockService.getIndicators(code))
+        )
+        restArr = await Promise.all(
+          uniqueArr.slice(mid).map((code) => StockService.getIndicators(code))
+        )
+
+        length = response?.length ?? 0
+      } catch (error) {
+        console.error('An error occurred:', error)
+      }
+    } while (length === 0)
+
+    return [...halfArr, ...restArr]
+  }
+
+  static removeALl = () => {
+    this.redisHandler.removeAll()
+  }
+
+  static getAllKeys = async () => {
+    const keys = await this.redisHandler.getAllKeys('indicators')
+    return keys
+  }
+
+  static filterStocks = async () => {
+    const stocksIndicators = await this.getAllStocksIndicators()
+    if (stocksIndicators?.length) {
+      const strongStocks = stocksIndicators.filter((item: any) => {
+        const { rsi, macd, mfi, stoch, stochRSI, ma, lastPrice } = item
+        const averageRSI =
+          rsi.slice(rsi.length - 2).reduce((acc: number, item: number) => acc + item, 0) / 2
+
+        const macdLine = macd.macd[macd.macd.length - 1]
+        const signalLine = macd.signal[macd.signal.length - 1]
+
+        const averageMFI =
+          mfi.slice(mfi.length - 2).reduce((acc: number, item: number) => acc + item, 0) / 2
+
+        const stochDLine = stoch.d[stoch.d.length - 1]
+        const stochKLine = stoch.k[stoch.k.length - 1]
+
+        const stochRSIDLine = stochRSI.d[stochRSI.d.length - 1]
+        const stochRSIKLine = stochRSI.k[stochRSI.k.length - 1]
+
+        return (
+          averageRSI < 40 &&
+          macdLine - signalLine >= -1 &&
+          averageMFI < 40 &&
+          Math.abs(stochDLine - stochKLine) <= 5 &&
+          stochDLine < 40 &&
+          stochKLine < 40 &&
+          stochRSIDLine < 40 &&
+          stochRSIKLine < 40 &&
+          Math.abs(stochRSIDLine - stochRSIKLine) <= 5
+        )
+      })
+      return strongStocks.map((item) => item.code)
+    }
+    return stocksIndicators
+  }
 }
+
+cron.schedule(
+  '5 15 * * *',
+  async () => {
+    await StockService.getAllStocksIndicators()
+  },
+  {
+    timezone: 'Asia/Bangkok'
+  }
+)
+
+// setTimeout(() => {
+//   StockService.removeALl()
+// }, 100)
 
 export default StockService

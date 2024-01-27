@@ -1,25 +1,40 @@
+import dotenv from 'dotenv'
+dotenv.config({ path: `.env.${process.env.NODE_ENV}` })
+
 const dev = {
   app: {
-    PORT: process.env.DEV_PORT || 8080,
+    PORT: process.env.DEV_PORT || 8080
   },
   db: {
-    username: process.env.DEV_USERNAME || 'root',
-    password: process.env.DEV_PASSWORD || 'root',
-    host: process.env.DEV_HOST || 'cluster0.iq84qw3.mongodb.net',
-    database: process.env.DEV_DATABASE || 'stocks',
+    username: process.env.DEV_USERNAME,
+    password: process.env.DEV_PASSWORD,
+    host: process.env.DEV_HOST,
+    database: process.env.DEV_DATABASE
   },
+  redis: {
+    username: process.env.DEV_REDIS_USERNAME,
+    password: process.env.DEV_REDIS_PASSWORD,
+    host: process.env.DEV_REDIS_HOST,
+    port: process.env.DEV_REDIS_PORT
+  }
 }
 
 const prod = {
   app: {
-    PORT: process.env.PROD_PORT || 8080,
+    PORT: process.env.PROD_PORT || 8080
   },
   db: {
-    username: process.env.PROD_USERNAME || 'root',
-    password: process.env.PROD_PASSWORD || 'admin',
-    host: process.env.PROD_HOST || 'localhost',
-    database: process.env.PROD_DATABASE || 'ecommerce',
+    username: process.env.PROD_USERNAME,
+    password: process.env.PROD_PASSWORD,
+    host: process.env.PROD_HOST,
+    database: process.env.PROD_DATABASE
   },
+  redis: {
+    username: process.env.PROD_REDIS_USERNAME,
+    password: process.env.PROD_REDIS_PASSWORD,
+    host: process.env.PROD_REDIS_HOST,
+    port: process.env.PROD_REDIS_PORT
+  }
 }
 
 const config = { dev, prod }

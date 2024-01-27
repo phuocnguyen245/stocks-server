@@ -1,10 +1,16 @@
 import { RedisClientType, createClient } from 'redis'
 
+import config from './config.ts'
+import { promisify } from 'util'
+const redis = (config as any)?.redis as any
+console.log(redis)
+const connectionString = `redis://${redis?.username}:${redis?.password}@${redis?.host}:${redis?.port}`
+
 class RedisHandler {
   redis: RedisClientType
   constructor() {
     this.redis = createClient({
-      url: 'redis://default:VdCWmrbVOUyVld5wjLrVBA2jMJ9oCq5C@redis-14062.c292.ap-southeast-1-1.ec2.cloud.redislabs.com:14062'
+      url: connectionString
     })
     this.redis.on('error', (err) => {
       console.log('Redis Client Error', err)
@@ -42,6 +48,29 @@ class RedisHandler {
     } catch (error) {
       throw new Error('Redis Error: ' + error)
     }
+  }
+
+  removeAll = async () => {
+    try {
+      await this.redis.flushDb()
+    } catch (error) {
+      throw new Error('Redis Error: ' + error)
+    }
+  }
+
+  getAllKeys = async (key: string) => {
+    let cursor = 0
+    let keys = []
+
+    do {
+      const res = await this.redis.scan(cursor, {
+        MATCH: `stocks-${key}*`
+      })
+      cursor = res.cursor
+      keys.push(...res.keys)
+    } while (cursor !== 0)
+
+    return keys
   }
 }
 
