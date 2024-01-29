@@ -73,6 +73,13 @@ interface RequestWithUser extends Request {
   id: string
 }
 
+interface RecommendedFilter {
+  macd: number[]
+  rsi: number[]
+  stoch: number[]
+  mfi: number[]
+  stoshRSI: number[]
+}
 export type {
   User,
   Stock,
@@ -85,5 +92,6 @@ export type {
   PagePagination,
   RequestWithUser,
   StockWithUserId,
-  Target
+  Target,
+  RecommendedFilter
 }

@@ -4,7 +4,7 @@ import mongoose, { FilterQuery, Types } from 'mongoose'
 import RedisHandler from '../config/redis.ts'
 import { BadRequest } from '../core/error.response.ts'
 import { Stocks } from '../models/stock.model.ts'
-import type { PagePagination, Stock } from '../types/types.js'
+import type { PagePagination, RecommendedFilter, Stock } from '../types/types.js'
 import { countDays, dateStringToNumber } from '../utils/index.ts'
 import AssetsService from './assets.service.ts'
 import CurrentStockService from './currentStock.service.ts'
@@ -445,7 +445,7 @@ class StockService {
     return keys
   }
 
-  static getRecommended = async () => {
+  static getRecommended = async (filters: RecommendedFilter) => {
     const stocksIndicators = await this.getAllStocksIndicators()
     if (stocksIndicators?.length) {
       const strongStocks = stocksIndicators.filter((item: any) => {
@@ -465,16 +465,22 @@ class StockService {
         const stochRSIDLine = stochRSI.d[stochRSI.d.length - 1]
         const stochRSIKLine = stochRSI.k[stochRSI.k.length - 1]
 
+        const subtractedMACD = macdLine - signalLine
         return (
-          averageRSI < 40 &&
-          macdLine - signalLine >= -1 &&
-          averageMFI < 40 &&
-          Math.abs(stochDLine - stochKLine) <= 5 &&
-          stochDLine < 40 &&
-          stochKLine < 40 &&
-          stochRSIDLine < 40 &&
-          stochRSIKLine < 40 &&
-          Math.abs(stochRSIDLine - stochRSIKLine) <= 5
+          subtractedMACD < filters?.macd[1] &&
+          subtractedMACD > filters?.macd[0] &&
+          averageRSI < filters?.rsi[1] &&
+          averageRSI > filters?.rsi[0] &&
+          stochDLine < filters?.stoch[1] &&
+          stochKLine < filters?.stoch[1] &&
+          stochDLine > filters?.stoch[0] &&
+          stochKLine > filters?.stoch[0] &&
+          stochRSIDLine < filters?.stoshRSI[1] &&
+          stochRSIKLine < filters?.stoshRSI[1] &&
+          stochRSIDLine > filters?.stoshRSI[0] &&
+          stochRSIKLine > filters?.stoshRSI[0] &&
+          averageMFI < filters?.mfi[1] &&
+          averageMFI > filters?.mfi[0]
         )
       })
       return strongStocks

@@ -3,7 +3,14 @@ import { Types } from 'mongoose'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
 import StockService from '../services/stocks.service.ts'
-import { PagePagination, RequestWithUser, Stock, StockWithUserId, Target } from '../types/types.js'
+import {
+  PagePagination,
+  RecommendedFilter,
+  RequestWithUser,
+  Stock,
+  StockWithUserId,
+  Target
+} from '../types/types.js'
 const message = {
   NOTFOUND: "Stock or Current Stock wasn't found",
   DELETED: 'Stock has been deleted',
@@ -166,7 +173,9 @@ class StocksController {
   }
 
   static getRecommended = async (req: Request, res: Response) => {
-    const data = await StockService.getRecommended()
+    const query = req.query.q as string
+
+    const data = await StockService.getRecommended(JSON.parse(query) as RecommendedFilter)
     return new OK({ data }).send(res)
   }
 }
