@@ -164,10 +164,8 @@ class CurrentStockService {
           this.removeCurrentStock(code, userId, session)
         }
       }
-      const ratio = convertToDecimal(
-        (foundCurrentStock.marketPrice - newAveragePrice) / newAveragePrice,
-        5
-      )
+      const ratio = (foundCurrentStock.marketPrice - newAveragePrice) / newAveragePrice
+
       const investedValue = convertToDecimal(
         (foundCurrentStock.marketPrice - newAveragePrice) * newVolume,
         3
@@ -324,7 +322,7 @@ class CurrentStockService {
         stock.volume * stock.orderPrice) /
         newVolume
     )
-    const ratio = convertToDecimal((foundCurrentStock.marketPrice - averagePrice) / averagePrice)
+    const ratio = (foundCurrentStock.marketPrice - averagePrice) / averagePrice
     const investedValue = convertToDecimal(
       (foundCurrentStock.marketPrice - averagePrice) * newVolume
     )
@@ -353,9 +351,7 @@ class CurrentStockService {
       code,
       marketPrice,
       averagePrice: foundCurrentStock.averagePrice,
-      ratio: convertToDecimal(
-        (marketPrice - foundCurrentStock.averagePrice) / foundCurrentStock.averagePrice
-      ),
+      ratio: (marketPrice - foundCurrentStock.averagePrice) / foundCurrentStock.averagePrice,
       volume: foundCurrentStock.volume,
       investedValue: convertToDecimal(
         (marketPrice - foundCurrentStock.averagePrice) * foundCurrentStock.volume

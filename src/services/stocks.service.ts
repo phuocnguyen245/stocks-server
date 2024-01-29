@@ -445,7 +445,7 @@ class StockService {
     return keys
   }
 
-  static filterStocks = async () => {
+  static getRecommended = async () => {
     const stocksIndicators = await this.getAllStocksIndicators()
     if (stocksIndicators?.length) {
       const strongStocks = stocksIndicators.filter((item: any) => {
@@ -477,7 +477,7 @@ class StockService {
           Math.abs(stochRSIDLine - stochRSIKLine) <= 5
         )
       })
-      return strongStocks.map((item) => item.code)
+      return strongStocks
     }
     return stocksIndicators
   }
@@ -492,9 +492,5 @@ cron.schedule(
     timezone: 'Asia/Bangkok'
   }
 )
-
-// setTimeout(() => {
-//   StockService.removeALl()
-// }, 100)
 
 export default StockService
