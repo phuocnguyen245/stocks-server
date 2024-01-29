@@ -1,5 +1,5 @@
-import dotenv from 'dotenv'
-dotenv.config({ path: `.env.${process.env.NODE_ENV}` })
+const environment = (process.env.NODE_ENV || 'dev').trim() as 'dev' | 'prod'
+require('dotenv').config({ path: `.env.${environment}` })
 
 const dev = {
   app: {
@@ -38,5 +38,5 @@ const prod = {
 }
 
 const config = { dev, prod }
-const env = (process.env.NODE_ENV as 'dev' | 'prod') || 'dev'
-export default config[env]
+
+export default config[environment]
