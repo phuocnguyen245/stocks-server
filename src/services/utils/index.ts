@@ -13,11 +13,6 @@ const filterBoardStocks = (
   }
 }
 
-interface MyObject {
-  name: string
-  // Add other properties as needed
-}
-
 function findDuplicateStocks(arr1: any, arr2: string[]): string[] {
   const duplicateNames: any[] = []
   let i = 0

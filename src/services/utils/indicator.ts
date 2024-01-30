@@ -248,14 +248,38 @@ class Indicator {
     const { rsi } = Indicator.RSI(closeData)
     const { stoch } = Indicator.STOCH(this.data)
     const { stoch: stochRSI } = Indicator.STOCH_RSI(rsi)
-
+    const result = {
+      macd: {
+        macd: macd.macd[macd.macd.length - 1],
+        signal: macd.signal[macd.signal.length - 1]
+      },
+      mfi: mfi[mfi.length - 1],
+      rsi: rsi[rsi.length - 1],
+      stoch: {
+        k: stoch.k[stoch.k.length - 1],
+        d: stoch.d[stoch.d.length - 1]
+      },
+      stochRSI: {
+        k: stochRSI.k[stochRSI.k.length - 1],
+        d: stochRSI.d[stochRSI.d.length - 1]
+      },
+      ma: {
+        ma10: ma.ma10[ma.ma10.length - 1],
+        ma20: ma.ma20[ma.ma20.length - 1],
+        ma50: ma.ma50[ma.ma50.length - 1],
+        ma100: ma.ma100[ma.ma100.length - 1],
+        ma150: ma.ma150[ma.ma150.length - 1],
+        ma200: ma.ma200[ma.ma200.length - 1]
+      }
+    }
     return (this.result = {
       macd,
       ma,
       mfi,
       rsi,
       stoch,
-      stochRSI
+      stochRSI,
+      result
     })
   }
 }

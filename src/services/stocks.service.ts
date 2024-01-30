@@ -449,7 +449,7 @@ class StockService {
     const stocksIndicators = await this.getAllStocksIndicators()
     if (stocksIndicators?.length) {
       const strongStocks = stocksIndicators.filter((item: any) => {
-        const { rsi, macd, mfi, stoch, stochRSI, ma, lastPrice } = item
+        const { rsi, macd, mfi, stoch, stochRSI } = item
         const averageRSI =
           rsi.slice(rsi.length - 2).reduce((acc: number, item: number) => acc + item, 0) / 2
 
@@ -467,20 +467,20 @@ class StockService {
 
         const subtractedMACD = macdLine - signalLine
         return (
-          subtractedMACD < filters?.macd[1] &&
-          subtractedMACD > filters?.macd[0] &&
-          averageRSI < filters?.rsi[1] &&
-          averageRSI > filters?.rsi[0] &&
-          stochDLine < filters?.stoch[1] &&
-          stochKLine < filters?.stoch[1] &&
-          stochDLine > filters?.stoch[0] &&
-          stochKLine > filters?.stoch[0] &&
-          stochRSIDLine < filters?.stoshRSI[1] &&
-          stochRSIKLine < filters?.stoshRSI[1] &&
-          stochRSIDLine > filters?.stoshRSI[0] &&
-          stochRSIKLine > filters?.stoshRSI[0] &&
-          averageMFI < filters?.mfi[1] &&
-          averageMFI > filters?.mfi[0]
+          subtractedMACD < (filters?.macd?.[1] || 100) &&
+          subtractedMACD > (filters?.macd?.[0] || 0) &&
+          averageRSI < (filters?.rsi?.[1] || 100) &&
+          averageRSI > (filters?.rsi?.[0] || 0) &&
+          stochDLine < (filters?.stoch?.[1] || 100) &&
+          stochKLine < (filters?.stoch?.[1] || 100) &&
+          stochDLine > (filters?.stoch?.[0] || 0) &&
+          stochKLine > (filters?.stoch?.[0] || 0) &&
+          stochRSIDLine < (filters?.stoshRSI?.[1] || 100) &&
+          stochRSIKLine < (filters?.stoshRSI?.[1] || 100) &&
+          stochRSIDLine > (filters?.stoshRSI?.[0] || 0) &&
+          stochRSIKLine > (filters?.stoshRSI?.[0] || 0) &&
+          averageMFI < (filters?.mfi?.[1] || 100) &&
+          averageMFI > (filters?.mfi?.[0] || 0)
         )
       })
       return strongStocks
