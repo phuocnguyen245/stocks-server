@@ -8,7 +8,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "start": "set NODE_ENV=dev&& nodemon ./src/server.ts",
-    "start:prod": "NODE_ENV=prod nodemon ./src/server.ts"
+    "start:prod": "NODE_ENV=prod nodemon ./src/server.ts",
+    "postinstall": "npm run build"
   },
   "keywords": [],
   "author": "",
