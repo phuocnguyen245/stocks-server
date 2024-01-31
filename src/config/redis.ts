@@ -1,9 +1,7 @@
 import { RedisClientType, createClient } from 'redis'
 
 import config from './config.ts'
-import { promisify } from 'util'
 const redis = (config as any)?.redis as any
-console.log(redis)
 const connectionString = `redis://${redis?.username}:${redis?.password}@${redis?.host}:${redis?.port}`
 
 class RedisHandler {
@@ -47,6 +45,21 @@ class RedisHandler {
       await this.redis.expire(`stocks-${key}`, expired)
     } catch (error) {
       throw new Error('Redis Error: ' + error)
+    }
+  }
+
+  removeKey = async (key: string) => {
+    try {
+      await this.redis.del(`stocks-${key}`)
+    } catch (error) {
+      throw new Error('Redis Error:' + error)
+    }
+  }
+
+  removeKeys = async (key: string): Promise<void> => {
+    const keys = await this.getAllKeys(key)
+    if (keys.length) {
+      await Promise.all(keys.map((item) => this.redis.del(item)))
     }
   }
 

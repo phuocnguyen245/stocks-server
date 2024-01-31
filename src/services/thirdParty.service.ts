@@ -1,7 +1,10 @@
 import axios from 'axios'
 import https from 'https'
+import RedisHandler from '../config/redis'
+import StockService from './stocks.service'
 
 class ThirdPartyService {
+  static redisHandler = new RedisHandler()
   static getStockHistorical = async (code: string, today: string) => {
     try {
       const FIRE_ANT_KEY = process.env.FIRE_ANT_KEY
@@ -15,7 +18,7 @@ class ThirdPartyService {
       )
       return response.data
     } catch (error) {
-      throw new Error(error as string)
+      console.log(code)
     }
   }
 
@@ -29,7 +32,11 @@ class ThirdPartyService {
           })
         }
       )
-      return response.data
+      const data = response.data
+      const expiredTime = StockService.getExpiredTime()
+      await this.redisHandler.setExpired('board', expiredTime)
+      await this.redisHandler.save('board', JSON.stringify(data))
+      return data
     } catch (error) {
       throw new Error(error as string)
     }

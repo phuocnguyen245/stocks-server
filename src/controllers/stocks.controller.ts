@@ -178,6 +178,16 @@ class StocksController {
     const data = await StockService.getRecommended(JSON.parse(query) as RecommendedFilter)
     return new OK({ data }).send(res)
   }
+
+  static refreshTime = async (req: Request, res: Response) => {
+    const date = await StockService.refreshTime()
+    return new OK({ data: { date } }).send(res)
+  }
+
+  static getRefreshTime = async (req: Request, res: Response) => {
+    const date = await StockService.getRefreshTime()
+    return new OK({ data: { date } }).send(res)
+  }
 }
 
 export default StocksController

@@ -81,7 +81,7 @@ class StockService {
             Authorization: `Bearer ${FIRE_ANT_KEY}`
           }
         })
-        await this.redisHandler.save(redisCode, (response.data as EndOfDayStock[]).reverse())
+        await this.redisHandler.save(redisCode, (response.data as EndOfDayStock[])?.reverse())
         await this.redisHandler.setExpired(redisCode, expiredTime)
         return response.data
       }
@@ -130,7 +130,8 @@ class StockService {
   }
 
   static getEndOfDayStock = async (code: string) => {
-    const foundStock = await this.redisHandler.get(code)
+    const redisCode = `fa-${code}`
+    const foundStock = await this.redisHandler.get(redisCode)
     const today = moment().utcOffset(420).format('YYYY-MM-DD')
     if (foundStock) {
       return foundStock
@@ -142,12 +143,12 @@ class StockService {
 
       if (FIRE_ANT_KEY) {
         const response = await ThirdPartyService.getStockHistorical(code, today)
-        await this.redisHandler.save(code, response.reverse() as EndOfDayStock[])
-        await this.redisHandler.setExpired(code, expiredTime)
+        await this.redisHandler.save(redisCode, response?.reverse() as EndOfDayStock[])
+        await this.redisHandler.setExpired(redisCode, expiredTime)
         return response
       }
     } catch (error) {
-      throw new Error(error as string)
+      console.log(error)
     }
   }
 
@@ -317,7 +318,7 @@ class StockService {
   }
 
   static getStockStatistics = async (code: string): Promise<any[][]> => {
-    const redisCode = `${code}-statistic`
+    const redisCode = `statistic-${code}`
     const foundStockStatistics = await this.redisHandler.get(redisCode)
 
     if (foundStockStatistics) {
@@ -409,7 +410,9 @@ class StockService {
 
   static getAllStocksIndicators = async () => {
     let length = 0
-    let halfArr = [] as any[]
+    let firstArr = [] as any[]
+    let secondArr = [] as any[]
+    let thirdArr = [] as any[]
     let restArr = [] as any[]
 
     do {
@@ -418,13 +421,19 @@ class StockService {
         const arr = response?.flatMap((item: any) => item.symbols)
         const uniqueArr = [...new Set(arr)] as string[]
 
-        const mid = Math.ceil(uniqueArr.length / 2)
+        const four = Math.ceil(uniqueArr.length / 4)
 
-        halfArr = await Promise.all(
-          uniqueArr.slice(0, mid).map((code) => StockService.getIndicators(code))
+        firstArr = await Promise.all(
+          uniqueArr.slice(0, four).map((code) => StockService.getIndicators(code))
+        )
+        secondArr = await Promise.all(
+          uniqueArr.slice(four, four * 2).map((code) => StockService.getIndicators(code))
+        )
+        thirdArr = await Promise.all(
+          uniqueArr.slice(four * 2, four * 3).map((code) => StockService.getIndicators(code))
         )
         restArr = await Promise.all(
-          uniqueArr.slice(mid).map((code) => StockService.getIndicators(code))
+          uniqueArr.slice(four).map((code) => StockService.getIndicators(code))
         )
 
         length = response?.length ?? 0
@@ -433,11 +442,18 @@ class StockService {
       }
     } while (length === 0)
 
-    return [...halfArr, ...restArr]
+    return [...firstArr, ...secondArr, ...thirdArr, ...restArr]
   }
 
-  static removeALl = () => {
-    this.redisHandler.removeAll()
+  static refreshTime = () => {
+    this.redisHandler.removeKeys('statistic')
+    this.redisHandler.removeKeys('fa')
+    this.redisHandler.removeKeys('indicators')
+    this.redisHandler.removeKeys('watch-lists')
+    this.redisHandler.removeKeys('board')
+    this.redisHandler.removeKeys('update-countdown')
+    this.redisHandler.save('refresh-code', moment().utc())
+    return moment().utc()
   }
 
   static getAllKeys = async () => {
@@ -487,11 +503,20 @@ class StockService {
     }
     return stocksIndicators
   }
+
+  static getRefreshTime = () => {
+    const redis = this.redisHandler.get('refresh-code')
+    if (redis) {
+      return redis
+    }
+    return moment().utc()
+  }
 }
 
 cron.schedule(
-  '5 15 * * *',
+  '43 17 * * *',
   async () => {
+    await StockService.refreshTime()
     await StockService.getAllStocksIndicators()
   },
   {
