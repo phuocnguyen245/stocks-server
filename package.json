@@ -10,6 +10,10 @@
     "start": "set NODE_ENV=prod && ts-node ./src/server.ts",
     "postinstall": "npm run build"
   },
+  "engines": {
+    "npm": ">=9.6.7 <9.6.7",
+    "node": ">=18.17.0 <18.17.0"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
