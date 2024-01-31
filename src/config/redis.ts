@@ -3,7 +3,7 @@ import { RedisClientType, createClient } from 'redis'
 import config from './config.ts'
 const redis = (config as any)?.redis as any
 const connectionString = `redis://${redis?.username}:${redis?.password}@${redis?.host}:${redis?.port}`
-console.log(redis)
+console.log(redis, process.env.NODE_ENV)
 
 class RedisHandler {
   redis: RedisClientType

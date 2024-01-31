@@ -38,5 +38,6 @@ const prod = {
 }
 
 const config = { dev, prod }
+console.log({ environment, config: config[environment] })
 
 export default config[environment]
