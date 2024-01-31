@@ -7,7 +7,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "start": "NODE_ENV=prod nodemon ./src/server.ts",
+    "start": "set NODE_ENV=prod && ts-node ./src/server.ts",
     "postinstall": "npm run build"
   },
   "keywords": [],
