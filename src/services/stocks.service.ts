@@ -28,7 +28,7 @@ class StockService {
   static getBalance = async (userId: string) => {
     const assets = await AssetsService.getAsset(userId)
     const paymentBalance = assets.payment / 1000
-    const stocksBalance = assets.stock.sell - assets.stock.order - assets.stock.waiting
+    const stocksBalance = assets.stock.sell - assets.stock.order + assets.stock.waiting
     const totalBalance = paymentBalance + stocksBalance
     return totalBalance
   }
