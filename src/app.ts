@@ -22,7 +22,7 @@ app.use(express.urlencoded({ extended: true }))
 app.use('/api/v1', router)
 
 //handle error
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   const error = new Error('Not found')
   ;(error as any).statusCode = 404
   next(error)
