@@ -9,6 +9,7 @@ const app = express()
 instanceMongodb
 
 const environment = (process.env.NODE_ENV as 'dev' | 'prod') || 'dev'
+
 require('dotenv').config({ path: `.env.${environment.trim()}` })
 
 //init middleware
