@@ -78,7 +78,7 @@ interface RecommendedFilter {
   rsi: number[]
   stoch: number[]
   mfi: number[]
-  stoshRSI: number[]
+  stochRSI: number[]
 }
 export type {
   User,
