@@ -121,6 +121,7 @@ class StockService {
     const expiredTime = this.getExpiredTime()
     await this.redisHandler.save(redisCode, watchList)
     await this.redisHandler.setExpired(redisCode, expiredTime)
+    return watchList
   }
 
   static getEndOfDayPrice = async (code: string) => {
@@ -409,40 +410,19 @@ class StockService {
   }
 
   static getAllStocksIndicators = async () => {
-    let length = 0
-    let firstArr = [] as any[]
-    let secondArr = [] as any[]
-    let thirdArr = [] as any[]
-    let restArr = [] as any[]
+    try {
+      const response = await StockService.getWatchList()
+      const arr = response?.flatMap((item: any) => item.symbols)
+      const uniqueArr = [...new Set(arr)] as string[]
 
-    do {
-      try {
-        const response = await StockService.getWatchList()
-        const arr = response?.flatMap((item: any) => item.symbols)
-        const uniqueArr = [...new Set(arr)] as string[]
+      const indicators = await Promise.all(
+        uniqueArr.map((code) => StockService.getIndicators(code))
+      )
 
-        const four = Math.ceil(uniqueArr.length / 4)
-
-        firstArr = await Promise.all(
-          uniqueArr.slice(0, four).map((code) => StockService.getIndicators(code))
-        )
-        secondArr = await Promise.all(
-          uniqueArr.slice(four, four * 2).map((code) => StockService.getIndicators(code))
-        )
-        thirdArr = await Promise.all(
-          uniqueArr.slice(four * 2, four * 3).map((code) => StockService.getIndicators(code))
-        )
-        restArr = await Promise.all(
-          uniqueArr.slice(four).map((code) => StockService.getIndicators(code))
-        )
-
-        length = response?.length ?? 0
-      } catch (error) {
-        console.error('An error occurred:', error)
-      }
-    } while (length === 0)
-
-    return [...firstArr, ...secondArr, ...thirdArr, ...restArr]
+      return indicators ?? []
+    } catch (error) {
+      console.error('An error occurred:', error)
+    }
   }
 
   static refreshTime = () => {
@@ -462,46 +442,57 @@ class StockService {
   }
 
   static getRecommended = async (filters: RecommendedFilter) => {
-    const stocksIndicators = await this.getAllStocksIndicators()
-    if (stocksIndicators?.length) {
-      const strongStocks = stocksIndicators.filter((item: any) => {
-        const { rsi, macd, mfi, stoch, stochRSI } = item
-        const averageRSI =
-          rsi.slice(rsi.length - 2).reduce((acc: number, item: number) => acc + item, 0) / 2
+    try {
+      const stocksIndicators = await this.getAllStocksIndicators()
 
-        const macdLine = macd.macd[macd.macd.length - 1]
+      if (!stocksIndicators?.length) {
+        return []
+      }
+
+      const strongStocks = stocksIndicators.filter((stock: any) => {
+        const { rsi, macd, mfi, stoch, stochRSI } = stock
+
+        const averageRSI = rsi.slice(-2).reduce((acc: number, val: number) => acc + val, 0) / 2
+
+        const { macd: macdData } = macd
+        const macdLine = macdData[macdData.length - 1]
         const signalLine = macd.signal[macd.signal.length - 1]
 
-        const averageMFI =
-          mfi.slice(mfi.length - 2).reduce((acc: number, item: number) => acc + item, 0) / 2
+        const averageMFI = mfi.slice(-2).reduce((acc: number, val: number) => acc + val, 0) / 2
 
-        const stochDLine = stoch.d[stoch.d.length - 1]
-        const stochKLine = stoch.k[stoch.k.length - 1]
+        const { d: stochD, k: stochK } = stoch
+        const stochDLine = stochD[stochD.length - 1]
+        const stochKLine = stochK[stochK.length - 1]
 
-        const stochRSIDLine = stochRSI.d[stochRSI.d.length - 1]
-        const stochRSIKLine = stochRSI.k[stochRSI.k.length - 1]
+        const { d: stochRSID, k: stochRSIK } = stochRSI
+        const stochRSIDLine = stochRSID[stochRSID.length - 1]
+        const stochRSIKLine = stochRSIK[stochRSIK.length - 1]
 
         const subtractedMACD = macdLine - signalLine
+
         return (
-          subtractedMACD < (filters?.macd?.[1] || 100) &&
-          subtractedMACD > (filters?.macd?.[0] || 0) &&
-          averageRSI < (filters?.rsi?.[1] || 100) &&
-          averageRSI > (filters?.rsi?.[0] || 0) &&
-          stochDLine < (filters?.stoch?.[1] || 100) &&
-          stochKLine < (filters?.stoch?.[1] || 100) &&
-          stochDLine > (filters?.stoch?.[0] || 0) &&
-          stochKLine > (filters?.stoch?.[0] || 0) &&
-          stochRSIDLine < (filters?.stoshRSI?.[1] || 100) &&
-          stochRSIKLine < (filters?.stoshRSI?.[1] || 100) &&
-          stochRSIDLine > (filters?.stoshRSI?.[0] || 0) &&
-          stochRSIKLine > (filters?.stoshRSI?.[0] || 0) &&
-          averageMFI < (filters?.mfi?.[1] || 100) &&
-          averageMFI > (filters?.mfi?.[0] || 0)
+          subtractedMACD < (filters?.macd?.[1] ?? 100) &&
+          subtractedMACD > (filters?.macd?.[0] ?? 0) &&
+          averageRSI < (filters?.rsi?.[1] ?? 100) &&
+          averageRSI > (filters?.rsi?.[0] ?? 0) &&
+          stochDLine < (filters?.stoch?.[1] ?? 100) &&
+          stochKLine < (filters?.stoch?.[1] ?? 100) &&
+          stochDLine > (filters?.stoch?.[0] ?? 0) &&
+          stochKLine > (filters?.stoch?.[0] ?? 0) &&
+          stochRSIDLine < (filters?.stochRSI?.[1] ?? 100) &&
+          stochRSIKLine < (filters?.stochRSI?.[1] ?? 100) &&
+          stochRSIDLine > (filters?.stochRSI?.[0] ?? 0) &&
+          stochRSIKLine > (filters?.stochRSI?.[0] ?? 0) &&
+          averageMFI < (filters?.mfi?.[1] ?? 100) &&
+          averageMFI > (filters?.mfi?.[0] ?? 0)
         )
       })
+
       return strongStocks
+    } catch (error) {
+      console.error('Error fetching stock indicators:', error)
+      return []
     }
-    return stocksIndicators
   }
 
   static getRefreshTime = () => {
