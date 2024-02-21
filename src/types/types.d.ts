@@ -17,6 +17,7 @@ interface User {
   username: string
   password: string
   isDeleted: boolean
+  email: string
   // roleId: Types.ObjectId
 }
 interface Target {

@@ -4,10 +4,21 @@ import { User } from '../types/types.js'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { createHash } from 'node:crypto'
 import AuthMiddleware from '../middleware/auth.middleware.ts'
+import nodemailer from 'nodemailer'
+
+const transporter = nodemailer.createTransport({
+  secure: true,
+  service: 'gmail',
+  auth: {
+    user: 'phuocnguyen24598@gmail.com',
+    pass: 'iuve iwdb qcoj lcdh'
+  }
+})
 
 const message = {
   EXISTED: 'User already exists',
-  NOT_FOUND: 'User not found'
+  NOT_FOUND: 'User not found',
+  NOT_FOUND_EMAIL: 'Email not found'
 }
 
 class UserService {
@@ -82,6 +93,30 @@ class UserService {
         ...(await AuthMiddleware.generateTokens({ _id: foundUser._id }, '2h', '72h'))
       }
     }
+  }
+
+  static updatePassword = async (id: string, password: string) => {
+    const newPassword = await this.hashPassword(password)
+    await Users.findByIdAndUpdate(id, { password: newPassword })
+  }
+
+  static sendMail = async (email: string) => {
+    const foundUser = await Users.findOne({ email }).lean()
+    if (!foundUser) {
+      throw new NotFound(message.NOT_FOUND_EMAIL)
+    }
+    const token = await AuthMiddleware.generateToken(
+      { _id: foundUser._id },
+      process.env.PRIVATE_KEY as string,
+      '1h'
+    )
+    await transporter.sendMail({
+      from: 'phuocnguyen24598@gmail.com',
+      to: foundUser.email,
+      subject: 'Reset Password (Stock Tracking) ✔',
+      text: 'Follow step to get new password',
+      html: `<b>Please click on</b> https://stocks-tracking.netlify.app/forgot-password?token=${token} to get new password`
+    })
   }
 }
 export default UserService

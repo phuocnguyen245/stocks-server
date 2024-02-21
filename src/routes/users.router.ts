@@ -14,6 +14,8 @@ router.post(
   asyncHandler(UserController.generateTokensByRefreshToken)
 )
 router.post('/register', asyncHandler(UserController.register))
+router.post('/send-mail', asyncHandler(UserController.sendMail))
+router.put('/password', asyncHandler(UserController.updatePassword))
 router.delete('/:id', asyncHandler(UserController.remove))
 
 export default router

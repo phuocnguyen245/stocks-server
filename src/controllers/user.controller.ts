@@ -1,5 +1,5 @@
 import { BadRequest, NotFound } from '../core/error.response.ts'
-import { CREATED, DELETED, OK } from '../core/success.response.ts'
+import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
 import UserService from '../services/user.service.ts'
 import { Request, Response } from 'express'
 import { RequestWithUser } from '../types/types.js'
@@ -48,5 +48,24 @@ class UserController {
     const tokens = await AuthMiddleware.generateTokens({ _id: id }, '2h', '7d')
     return new OK({ data: tokens }).send(res)
   }
+
+  static updatePassword = async (req: RequestWithUser, res: Response) => {
+    const token = req.body.token
+    const verifyToken = await AuthMiddleware.verifyToken(token, 'secret')
+    const password = req.body.password
+    if (!verifyToken) {
+      throw new BadRequest('Error token, please try again')
+    }
+    await UserService.updatePassword(verifyToken._id, password)
+    return new UPDATED({ message: 'Password has been updated' }).send(res)
+  }
+
+  static sendMail = async (req: RequestWithUser, res: Response) => {
+    const email = req.body.email
+
+    await UserService.sendMail(email)
+    return new OK({ message: 'Email already sent' }).send(res)
+  }
 }
+
 export default UserController

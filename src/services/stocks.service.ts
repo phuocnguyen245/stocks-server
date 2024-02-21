@@ -412,16 +412,30 @@ class StockService {
   static getAllStocksIndicators = async () => {
     try {
       const response = await StockService.getWatchList()
+
       const arr = response?.flatMap((item: any) => item.symbols)
       const uniqueArr = [...new Set(arr)] as string[]
 
-      const indicators = await Promise.all(
-        uniqueArr.map((code) => StockService.getIndicators(code))
+      const chunkSize = Math.ceil(uniqueArr.length / 4) // Calculate the size of each chunk
+
+      // Split uniqueArr into chunks
+      const arrChunks = []
+      for (let i = 0; i < uniqueArr.length; i += chunkSize) {
+        arrChunks.push(uniqueArr.slice(i, i + chunkSize))
+      }
+
+      // Perform Promise.all for each chunk
+      const promises = arrChunks.map((chunk) =>
+        Promise.all(chunk.map((code) => StockService.getIndicators(code)))
       )
+
+      // Wait for all promises to resolve and flatten the result
+      const indicators = (await Promise.all(promises)).flat()
 
       return indicators ?? []
     } catch (error) {
       console.error('An error occurred:', error)
+      return []
     }
   }
 
@@ -433,6 +447,7 @@ class StockService {
     this.redisHandler.removeKeys('board')
     this.redisHandler.removeKeys('update-countdown')
     this.redisHandler.save('refresh-code', moment().utc())
+    this.getAllStocksIndicators()
     return moment().utc()
   }
 
@@ -505,7 +520,7 @@ class StockService {
 }
 
 cron.schedule(
-  '43 17 * * *',
+  '05 15h * * *',
   async () => {
     await StockService.refreshTime()
     await StockService.getAllStocksIndicators()

@@ -24,6 +24,11 @@ const UserSchema = new Schema<User>(
       type: Boolean,
       default: false,
       required: true
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true
     }
     // roleId: {
     //   type: Types.ObjectId,
