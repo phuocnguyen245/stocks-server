@@ -162,6 +162,7 @@ class StockService {
     const sortPage = page || 0
     const sortSize = size || 10
     const order = orderBy || 'desc'
+    console.log(extraFilter)
 
     const filter: FilterQuery<Stock> = {
       userId: new Types.ObjectId(userId),
@@ -171,10 +172,7 @@ class StockService {
 
     const getData = async () =>
       await Stocks.find(filter)
-        .sort([
-          ['status', 1],
-          [`${sort ?? 'createdAt'}`, order]
-        ])
+        .sort([[`${sort ?? 'createdAt'}`, order]])
         .limit(sortSize)
         .skip(sortPage * sortSize)
         .lean()
@@ -282,8 +280,10 @@ class StockService {
             const convertStock = stock?.toObject()
             return convertStock
           }
+          throw new BadRequest('This stock is not available')
         }
-        throw Error("You don't have enough money to do")
+
+        throw new BadRequest("You don't have enough money to do")
       }
       return null
     } catch (error: any) {

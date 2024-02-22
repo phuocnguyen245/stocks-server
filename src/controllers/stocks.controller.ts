@@ -3,21 +3,15 @@ import { Types } from 'mongoose'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
 import StockService from '../services/stocks.service.ts'
-import {
-  PagePagination,
-  RecommendedFilter,
-  RequestWithUser,
-  Stock,
-  StockWithUserId,
-  Target
-} from '../types/types.js'
+import { PagePagination, RecommendedFilter, RequestWithUser, Stock } from '../types/types.js'
 const message = {
   NOTFOUND: "Stock or Current Stock wasn't found",
   DELETED: 'Stock has been deleted',
   MISSING_CODE: 'Missing code',
   WATCH_LIST: 'Get watch list successfully',
   STATISTIC: 'Get statistic successfully',
-  UPDATED: 'Stock has successfully updated'
+  UPDATED: 'Stock has successfully updated',
+  CANT_DELETE: 'Cannot delete this stock'
 }
 
 class StocksController {
@@ -62,17 +56,20 @@ class StocksController {
 
   static getAll = async (req: RequestWithUser, res: Response) => {
     const userId = req.id
-    const { page, size, sort, orderBy } = req.query as unknown as PagePagination<Stock>
+    const { page, size, sort, orderBy, ...rest } = req.query as unknown as PagePagination<Stock>
 
     const numberPage = Number(page)
     const numberSize = Number(size)
-    const data = await StockService.getAllStocks({
-      userId,
-      page: numberPage,
-      size: numberSize,
-      sort,
-      orderBy
-    })
+    const data = await StockService.getAllStocks(
+      {
+        userId,
+        page: numberPage,
+        size: numberSize,
+        sort,
+        orderBy
+      },
+      rest
+    )
 
     return new OK({
       data
@@ -97,7 +94,6 @@ class StocksController {
     const { body, id: userId } = req
 
     const data = this.formatBody(body)
-    console.log(body, data)
 
     const newStock = await StockService.createStock(data, userId)
 
@@ -130,6 +126,9 @@ class StocksController {
     if (!foundStock) {
       throw new NotFound(message.NOTFOUND)
     }
+    // if (foundStock.status === 'Sell') {
+    //   throw new BadRequest(message.CANT_DELETE)
+    // }
     await StockService.removeStock(id, foundStock, userId)
 
     return new DELETED({ message: message.DELETED }).send(res)

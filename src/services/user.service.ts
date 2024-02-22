@@ -41,7 +41,7 @@ class UserService {
 
   static getByIdOrUsername = async (payload: string) => {
     const isObjectId = Types.ObjectId.isValid(payload)
-    const query = isObjectId ? { _id: payload } : { username: payload }
+    const query = isObjectId ? { _id: payload } : { username: payload.trim().toLowerCase() }
     const foundUser = await Users.findOne({ ...query, isDeleted: false }).lean()
 
     if (!foundUser) {
@@ -56,7 +56,12 @@ class UserService {
   }
 
   static create = async (body: User) => {
-    return (await Users.create(body)).toObject()
+    return (
+      await Users.create({
+        username: body.username.trim().toLowerCase(),
+        email: body.email.trim().toLowerCase()
+      })
+    ).toObject()
   }
 
   static register = async (body: User) => {
@@ -101,7 +106,7 @@ class UserService {
   }
 
   static sendMail = async (email: string) => {
-    const foundUser = await Users.findOne({ email }).lean()
+    const foundUser = await Users.findOne({ email: email.trim().toLowerCase() }).lean()
     if (!foundUser) {
       throw new NotFound(message.NOT_FOUND_EMAIL)
     }
@@ -115,7 +120,7 @@ class UserService {
       to: foundUser.email,
       subject: 'Reset Password (Stock Tracking) ✔',
       text: 'Follow step to get new password',
-      html: `<b>Please click on</b> https://stocks-tracking.netlify.app/forgot-password?token=${token} to get new password`
+      html: `<b>The url will be expired in 1h. Please click on</b> https://stocks-tracking.netlify.app/forgot-password?token=${token} to get new password`
     })
   }
 }

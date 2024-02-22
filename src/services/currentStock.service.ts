@@ -11,7 +11,6 @@ class CurrentStockService {
 
   static getCurrentStocks = async (pagination: PagePagination<CurrentStock>) => {
     const { page, size, sort, orderBy, userId } = pagination
-    const orderByNumber = orderBy === 'asc' ? 1 : -1
     const redisCode = `update-countdown-${userId}`
     const sortPage = page || 0
     const sortSize = size || 10
@@ -32,7 +31,6 @@ class CurrentStockService {
         const updateStockPromises = currentStock.map(async (stock: string) => {
           return await this.updateCurrentStockByDay(stock, data[stock], userId)
         })
-
         await Promise.all(updateStockPromises)
       }
       await this.redisHandler.save(redisCode, true)
@@ -243,16 +241,21 @@ class CurrentStockService {
         }
         return currentStock
       }
-      if (volume && volume > 0) {
-        newVolume = foundCurrentStock.volume + oldStock.volume - volume
+      if (volume) {
+        if (volume >= 0) {
+          newVolume = foundCurrentStock.volume + oldStock.volume - volume
+        } else {
+          throw new BadRequest('Volume must be greater than 0')
+        }
       }
+      const newVolumeSell = newVolume + foundCurrentStock.volume
       const currentStock: CurrentStock = {
         ...body,
-        volume: newVolume,
+        volume: newVolumeSell,
         averagePrice: convertToDecimal(foundCurrentStock.averagePrice),
         marketPrice: endOfDayPrice,
         investedValue: convertToDecimal(
-          (endOfDayPrice - foundCurrentStock.averagePrice) * newVolume,
+          (endOfDayPrice - foundCurrentStock.averagePrice) * newVolumeSell,
           3
         ),
         ratio: (endOfDayPrice - foundCurrentStock.averagePrice) / foundCurrentStock.averagePrice
@@ -274,7 +277,7 @@ class CurrentStockService {
     const marketPrice = await StockService.getEndOfDayPrice(stock.code)
     if (!foundCurrentStock) {
       if (!isBuy) {
-        throw new Error('This stock is not available')
+        throw new BadRequest('This stock is not available')
       }
       const marketPrice = await StockService.getEndOfDayPrice(stock.code)
       return await this.createCurrentStock(

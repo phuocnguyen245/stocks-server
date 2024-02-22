@@ -28,8 +28,9 @@ class PaymentController {
 
     return new OK({
       data: {
-        data: payments,
-        totalItems: payments.length,
+        data: payments.data,
+        totalItems: payments.data.length,
+        total: payments.total,
         page,
         size
       },

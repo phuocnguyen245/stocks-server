@@ -23,7 +23,29 @@ class PaymentService {
       .limit(sortSize)
       .skip(sortPage * sortSize)
       .lean()
-    return data
+
+    const total = await Payments.aggregate([
+      {
+        $match: { isDeleted: false, userId: new Types.ObjectId(userId) }
+      },
+      {
+        $group: {
+          _id: null,
+          totalTopUp: {
+            $sum: {
+              $cond: [{ $eq: ['$type', 0] }, { $multiply: ['$balance', 1] }, 0]
+            }
+          },
+          totalWithdraw: {
+            $sum: {
+              $cond: [{ $eq: ['$type', 1] }, { $multiply: ['$balance', 1] }, 0]
+            }
+          }
+        }
+      }
+    ])
+
+    return { data, total }
   }
 
   static createPayment = async (body: PaymentsType, userId: string) => {
