@@ -10,6 +10,8 @@ interface PagePagination<T> {
   sort?: keyof T
   orderBy?: OrderBy
   userId: string
+  from?: string
+  to?: string
 }
 
 interface User {
@@ -81,6 +83,26 @@ interface RecommendedFilter {
   mfi: number[]
   stochRSI: number[]
 }
+
+interface WatchListItem {
+  name: string
+  order: number
+  items: {
+    symbols: string[]
+    stock: {
+      companyName: string
+      code: string
+      close: number
+      change: number
+      changePercent: number
+    }
+  }
+}
+interface WatchList {
+  userId: Types.ObjectId
+  attributes: WatchListItem[]
+}
+
 export type {
   User,
   Stock,
@@ -94,5 +116,6 @@ export type {
   RequestWithUser,
   StockWithUserId,
   Target,
-  RecommendedFilter
+  RecommendedFilter,
+  WatchList
 }

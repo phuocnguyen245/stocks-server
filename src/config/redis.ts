@@ -9,7 +9,8 @@ class RedisHandler {
   redis: RedisClientType
   constructor() {
     this.redis = createClient({
-      url: connectionString
+      url: connectionString,
+      legacyMode: false
     })
     this.redis.on('error', (err) => {
       console.log('Redis Client Error', err)
@@ -22,6 +23,9 @@ class RedisHandler {
 
   save = async (key: string, value: unknown) => {
     try {
+      if (typeof value === 'string') {
+        return await this.redis.SET(`stocks-${key}`, value)
+      }
       return await this.redis.SET(`stocks-${key}`, JSON.stringify(value))
     } catch (error) {
       throw new Error('Redis Error: ' + error)

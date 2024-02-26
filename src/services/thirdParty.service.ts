@@ -17,8 +17,8 @@ class ThirdPartyService {
         }
       )
       return response.data
-    } catch (error) {
-      console.log(code)
+    } catch (error: any) {
+      console.log(code, 123, error.message)
     }
   }
 

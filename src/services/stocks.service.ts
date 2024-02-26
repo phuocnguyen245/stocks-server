@@ -144,9 +144,11 @@ class StockService {
 
       if (FIRE_ANT_KEY) {
         const response = await ThirdPartyService.getStockHistorical(code, today)
-        await this.redisHandler.save(redisCode, response?.reverse() as EndOfDayStock[])
-        await this.redisHandler.setExpired(redisCode, expiredTime)
-        return response
+        if (response) {
+          await this.redisHandler.save(redisCode, response?.reverse() as EndOfDayStock[])
+          await this.redisHandler.setExpired(redisCode, expiredTime)
+          return response
+        }
       }
     } catch (error) {
       console.log(error)
@@ -157,18 +159,23 @@ class StockService {
     pagination: PagePagination<Stock>,
     extraFilter?: FilterQuery<Stock>
   ) => {
-    const { page, size, sort, orderBy, userId } = pagination
+    const { page, size, sort, orderBy, userId, from, to } = pagination
 
     const sortPage = page || 0
     const sortSize = size || 10
     const order = orderBy || 'desc'
-    console.log(extraFilter)
 
     const filter: FilterQuery<Stock> = {
       userId: new Types.ObjectId(userId),
       isDeleted: false,
-      ...extraFilter
+      ...extraFilter,
+      updatedAt: {
+        $gte: from || '2023-12-31T17:00:00.000Z',
+        $lt: to || '2025-12-31T17:00:00.000Z'
+      }
     }
+
+    console.log(filter)
 
     const getData = async () =>
       await Stocks.find(filter)
@@ -378,17 +385,20 @@ class StockService {
     const foundRedisData = await this.redisHandler.get(redisCode)
 
     if (foundRedisData) {
-      return JSON.parse(foundRedisData)
+      return foundRedisData
     }
 
     const codePrices = await this.getStockStatistics(code)
-    const indicator = new Indicator({ data: codePrices.slice(75) })
-    const result = indicator.getResult()
-    const data = { ...result, lastPrice: codePrices[codePrices.length - 1][4], code }
-    const expiredTime = this.getExpiredTime()
-    await this.redisHandler.save(redisCode, JSON.stringify(data))
-    await this.redisHandler.setExpired(redisCode, expiredTime)
-    return data
+    if (codePrices.length) {
+      const indicator = new Indicator({ data: codePrices?.slice(75) })
+      const result = indicator.getResult()
+      const data = { ...result, lastPrice: codePrices[codePrices.length - 1][4], code }
+      const expiredTime = this.getExpiredTime()
+      await this.redisHandler.save(redisCode, JSON.stringify(data))
+      await this.redisHandler.setExpired(redisCode, expiredTime)
+      return data
+    }
+    return []
   }
 
   static getBoardStocks = async (pagination: { page: number; size: number; search: string }) => {
@@ -416,30 +426,37 @@ class StockService {
       const arr = response?.flatMap((item: any) => item.symbols)
       const uniqueArr = [...new Set(arr)] as string[]
 
-      const chunkSize = Math.ceil(uniqueArr.length / 4) // Calculate the size of each chunk
+      if (uniqueArr.length > 0) {
+        const chunkSize = Math.ceil(uniqueArr.length / 1) // Calculate the size of each chunk
 
-      // Split uniqueArr into chunks
-      const arrChunks = []
-      for (let i = 0; i < uniqueArr.length; i += chunkSize) {
-        arrChunks.push(uniqueArr.slice(i, i + chunkSize))
+        // Split uniqueArr into chunks
+        const arrChunks = []
+        for (let i = 0; i < uniqueArr.length; i += chunkSize) {
+          arrChunks.push(uniqueArr?.slice(i, i + chunkSize))
+        }
+
+        let indicators: any[] = []
+        await Promise.all(
+          arrChunks.map(async (items) => {
+            const itemData = await Promise.all(
+              items.map(async (code) => {
+                return await StockService.getIndicators(code)
+              })
+            )
+            indicators.push(...itemData)
+          })
+        )
+
+        return indicators.flat()
       }
-
-      // Perform Promise.all for each chunk
-      const promises = arrChunks.map((chunk) =>
-        Promise.all(chunk.map((code) => StockService.getIndicators(code)))
-      )
-
-      // Wait for all promises to resolve and flatten the result
-      const indicators = (await Promise.all(promises)).flat()
-
-      return indicators ?? []
+      return []
     } catch (error) {
       console.error('An error occurred:', error)
       return []
     }
   }
 
-  static refreshTime = () => {
+  static refreshTime = async () => {
     this.redisHandler.removeKeys('statistic')
     this.redisHandler.removeKeys('fa')
     this.redisHandler.removeKeys('indicators')
@@ -447,7 +464,7 @@ class StockService {
     this.redisHandler.removeKeys('board')
     this.redisHandler.removeKeys('update-countdown')
     this.redisHandler.save('refresh-code', moment().utc())
-    this.getAllStocksIndicators()
+    await this.getAllStocksIndicators()
     return moment().utc()
   }
 
@@ -467,13 +484,13 @@ class StockService {
       const strongStocks = stocksIndicators.filter((stock: any) => {
         const { rsi, macd, mfi, stoch, stochRSI } = stock
 
-        const averageRSI = rsi.slice(-2).reduce((acc: number, val: number) => acc + val, 0) / 2
+        const averageRSI = rsi?.slice(-2).reduce((acc: number, val: number) => acc + val, 0) / 2
 
         const { macd: macdData } = macd
         const macdLine = macdData[macdData.length - 1]
         const signalLine = macd.signal[macd.signal.length - 1]
 
-        const averageMFI = mfi.slice(-2).reduce((acc: number, val: number) => acc + val, 0) / 2
+        const averageMFI = mfi?.slice(-2).reduce((acc: number, val: number) => acc + val, 0) / 2
 
         const { d: stochD, k: stochK } = stoch
         const stochDLine = stochD[stochD.length - 1]
