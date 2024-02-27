@@ -1,6 +1,7 @@
 import axios from 'axios'
 import moment from 'moment'
 import mongoose, { FilterQuery, Types } from 'mongoose'
+import cron from 'node-cron'
 import RedisHandler from '../config/redis.ts'
 import { BadRequest } from '../core/error.response.ts'
 import { Stocks } from '../models/stock.model.ts'
@@ -11,7 +12,6 @@ import CurrentStockService from './currentStock.service.ts'
 import ThirdPartyService from './thirdParty.service.ts'
 import { filterBoardStocks, findDuplicateStocks } from './utils/index.ts'
 import Indicator from './utils/indicator.ts'
-import cron from 'node-cron'
 
 interface EndOfDayStock {
   date: string
@@ -159,7 +159,7 @@ class StockService {
     pagination: PagePagination<Stock>,
     extraFilter?: FilterQuery<Stock>
   ) => {
-    const { page, size, sort, orderBy, userId, from, to } = pagination
+    const { page, size, sort, orderBy, userId } = pagination
 
     const sortPage = page || 0
     const sortSize = size || 10
@@ -168,14 +168,13 @@ class StockService {
     const filter: FilterQuery<Stock> = {
       userId: new Types.ObjectId(userId),
       isDeleted: false,
-      ...extraFilter,
+      ...(extraFilter?.status && { status: extraFilter?.status }),
+      code: { $regex: extraFilter?.search || '', $options: 'i' },
       updatedAt: {
-        $gte: from || '2023-12-31T17:00:00.000Z',
-        $lt: to || '2025-12-31T17:00:00.000Z'
+        $gte: extraFilter?.from ?? '2022-12-31T17:00:00.000Z',
+        $lte: extraFilter?.to ?? '2027-12-31T17:00:00.000Z'
       }
     }
-
-    console.log(filter)
 
     const getData = async () =>
       await Stocks.find(filter)
@@ -405,7 +404,7 @@ class StockService {
     const code = 'board'
     const foundRedisData = await this.redisHandler.get(code)
     if (foundRedisData) {
-      const parseRedisData = JSON.parse(foundRedisData)
+      const parseRedisData = foundRedisData
       const data = filterBoardStocks(parseRedisData.data, pagination)
       return data
     }
