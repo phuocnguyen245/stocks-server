@@ -464,7 +464,6 @@ class StockService {
     this.redisHandler.removeKeys('board')
     this.redisHandler.removeKeys('update-countdown')
     this.redisHandler.save('refresh-code', moment().utc())
-    await this.getAllStocksIndicators()
     return moment().utc()
   }
 
@@ -481,12 +480,12 @@ class StockService {
         return []
       }
 
-      const strongStocks = stocksIndicators.filter((stock: any) => {
+      const strongStocks = stocksIndicators?.filter((stock: any) => {
         const { rsi, macd, mfi, stoch, stochRSI } = stock
 
         const averageRSI = rsi?.slice(-2).reduce((acc: number, val: number) => acc + val, 0) / 2
 
-        const { macd: macdData } = macd
+        const { macd: macdData = [] } = macd
         const macdLine = macdData[macdData.length - 1]
         const signalLine = macd.signal[macd.signal.length - 1]
 
