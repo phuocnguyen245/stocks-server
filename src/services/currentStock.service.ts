@@ -228,6 +228,7 @@ class CurrentStockService {
             oldStock.orderPrice * oldStock.volume +
             volume * orderPrice) /
           newVolume
+
         const currentStock: CurrentStock = {
           ...body,
           volume: newVolume,
@@ -241,21 +242,17 @@ class CurrentStockService {
         }
         return currentStock
       }
-      if (volume) {
-        if (volume >= 0) {
-          newVolume = foundCurrentStock.volume + oldStock.volume - volume
-        } else {
-          throw new BadRequest('Volume must be greater than 0')
-        }
+      if (volume >= 0) {
+        newVolume = foundCurrentStock.volume + oldStock.volume - volume
       }
-      const newVolumeSell = newVolume + foundCurrentStock.volume
+      newVolume < 0 && new BadRequest('Volume must be greater than 0')
       const currentStock: CurrentStock = {
         ...body,
-        volume: newVolumeSell,
+        volume: newVolume,
         averagePrice: convertToDecimal(foundCurrentStock.averagePrice),
         marketPrice: endOfDayPrice,
         investedValue: convertToDecimal(
-          (endOfDayPrice - foundCurrentStock.averagePrice) * newVolumeSell,
+          (endOfDayPrice - foundCurrentStock.averagePrice) * newVolume,
           3
         ),
         ratio: (endOfDayPrice - foundCurrentStock.averagePrice) / foundCurrentStock.averagePrice
@@ -276,9 +273,9 @@ class CurrentStockService {
 
     const marketPrice = await StockService.getEndOfDayPrice(stock.code)
     if (!foundCurrentStock) {
-      if (!isBuy) {
-        throw new BadRequest('This stock is not available')
-      }
+      // if (!isBuy) {
+      //   throw new BadRequest('This stock is not available')
+      // }
       const marketPrice = await StockService.getEndOfDayPrice(stock.code)
       return await this.createCurrentStock(
         {

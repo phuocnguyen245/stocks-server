@@ -4,15 +4,55 @@ import mongoose, { FilterQuery, Types } from 'mongoose'
 import cron from 'node-cron'
 import RedisHandler from '../config/redis.ts'
 import { BadRequest } from '../core/error.response.ts'
-import { Stocks } from '../models/stock.model.ts'
 import type { PagePagination, RecommendedFilter, Stock } from '../types/types.js'
 import { countDays, dateStringToNumber } from '../utils/index.ts'
 import AssetsService from './assets.service.ts'
-import CurrentStockService from './currentStock.service.ts'
 import ThirdPartyService from './thirdParty.service.ts'
 import { filterBoardStocks, findDuplicateStocks } from './utils/index.ts'
 import Indicator from './utils/indicator.ts'
+import CurrentStockService from './currentStock.service.ts'
 
+import { Stocks } from '../models/stock.model.ts'
+import { CurrentStocks } from '../models/currentStock.model.ts'
+
+const addTest = async () => {
+  await Stocks.create([
+    {
+      code: 'PDR',
+      date: '2024-02-27T07:57:34.786Z',
+      orderPrice: '28',
+      status: 'Buy',
+      volume: 10000,
+      userId: '65d5bf2835583118d16a88ec'
+    },
+    {
+      code: 'PDR',
+      date: '2024-02-27T07:57:34.786Z',
+      orderPrice: '30',
+      status: 'Buy',
+      volume: 10000,
+      userId: '65d5bf2835583118d16a88ec'
+    },
+    {
+      code: 'PDR',
+      date: '2024-02-27T07:57:34.786Z',
+      sellPrice: '28',
+      status: 'Sell',
+      volume: 3000,
+      userId: '65d5bf2835583118d16a88ec'
+    }
+  ])
+  await CurrentStocks.create({
+    code: 'PDR',
+    volume: 17000,
+    ratio: 1,
+    investedValue: 1000,
+    marketPrice: 30,
+    averagePrice: 29,
+    userId: '65d5bf2835583118d16a88ec'
+  })
+}
+// addTest()
 interface EndOfDayStock {
   date: string
   priceOpen: number
@@ -43,6 +83,7 @@ class StockService {
 
   static checkBalanceUpdate = async (oldBalance: number, balance: number, userId: string) => {
     const totalBalance = await this.getBalance(userId)
+
     if (totalBalance + oldBalance >= balance) {
       return true
     }
@@ -226,7 +267,7 @@ class StockService {
             }
           )) as any
         } else {
-          throw Error("You don't have enough money to do")
+          throw new BadRequest("You don't have enough money to do")
         }
       } else {
         stock = (await Stocks.create([{ ...body, userId: new Types.ObjectId(userId) }], {
@@ -260,11 +301,13 @@ class StockService {
       const isBuy = body.status === 'Buy'
 
       const oldStock = await this.getStockById(id)
+
       const { _id, ...rest } = body
 
       if (oldStock) {
-        const oldBalance = oldStock.orderPrice * oldStock.volume
-        const newBalance = body.orderPrice * body.volume
+        const oldBalance = (oldStock.orderPrice || oldStock.sellPrice) * oldStock.volume
+        const newBalance = (body.orderPrice || body.sellPrice) * body.volume
+
         if (await this.checkBalanceUpdate(oldBalance, newBalance, userId)) {
           const endOfDayPrice = await this.getEndOfDayPrice(oldStock.code)
           const newBody = await CurrentStockService.convertBodyToUpdate(
