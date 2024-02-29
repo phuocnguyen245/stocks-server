@@ -7,7 +7,7 @@ class PaymentService {
     pagination: PagePagination<PaymentsType>,
     extraFilter?: FilterQuery<PaymentsType>
   ) => {
-    const { page, size, sort, orderBy, userId } = pagination
+    const { page, size, sortDirection, sortBy, userId } = pagination
     const sortPage = page || 0
     const sortSize = size || 10
     const filter: FilterQuery<PaymentsType> = {
@@ -18,7 +18,7 @@ class PaymentService {
 
     const data = await Payments.find(filter)
       .sort({
-        [`${sort ?? 'createdAt'}`]: orderBy ?? 'desc'
+        [`${sortBy || 'createdAt'}`]: sortDirection ?? 'desc'
       })
       .limit(sortSize)
       .skip(sortPage * sortSize)

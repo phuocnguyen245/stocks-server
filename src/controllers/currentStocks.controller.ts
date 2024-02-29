@@ -10,15 +10,16 @@ const message = {
 
 class CurrentStockController {
   static getCurrentStocks = async (req: RequestWithUser, res: Response) => {
-    const { page, size, sort, orderBy } = req.query as unknown as PagePagination<CurrentStock>
+    const { page, size, sortBy, sortDirection } =
+      req.query as unknown as PagePagination<CurrentStock>
     const { id: userId } = req
     const numberPage = Number(page)
     const numberSize = Number(size)
     const data = await CurrentStockService.getCurrentStocks({
       page: numberPage,
       size: numberSize,
-      orderBy,
-      sort,
+      sortBy,
+      sortDirection,
       userId
     })
 

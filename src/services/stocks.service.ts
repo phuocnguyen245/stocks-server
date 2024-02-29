@@ -144,12 +144,13 @@ class StockService {
     ])
     const stocksInList = faWatchList.flatMap((item: any) => item?.symbols) || []
     const sortedList = stocksInList.sort((a: string, b: string) => (a > b ? 1 : -1))
-    const arr = findDuplicateStocks(boardList.data, sortedList)
+    const arr = findDuplicateStocks(boardList, sortedList)
+
     const watchList = faWatchList.map((item: any) => {
       const data: any = []
       item.symbols.forEach((code: string) => {
         arr.forEach((arrItem: any) => {
-          if (arrItem.liveboard.Symbol === code) {
+          if (arrItem.symbol === code) {
             data.push(arrItem)
           }
         })
@@ -200,11 +201,11 @@ class StockService {
     pagination: PagePagination<Stock>,
     extraFilter?: FilterQuery<Stock>
   ) => {
-    const { page, size, sort, orderBy, userId } = pagination
+    const { page, size, sortDirection, sortBy, userId } = pagination
 
     const sortPage = page || 0
     const sortSize = size || 10
-    const order = orderBy || 'desc'
+    const order = sortDirection || 'desc'
 
     const filter: FilterQuery<Stock> = {
       userId: new Types.ObjectId(userId),
@@ -219,7 +220,7 @@ class StockService {
 
     const getData = async () =>
       await Stocks.find(filter)
-        .sort([[`${sort ?? 'createdAt'}`, order]])
+        .sort([[`${sortBy || 'createdAt'}`, order]])
         .limit(sortSize)
         .skip(sortPage * sortSize)
         .lean()
@@ -446,15 +447,15 @@ class StockService {
   static getBoardStocks = async (pagination: { page: number; size: number; search: string }) => {
     const code = 'board'
     const foundRedisData = await this.redisHandler.get(code)
+
     if (foundRedisData) {
-      const parseRedisData = foundRedisData
-      const data = filterBoardStocks(parseRedisData.data, pagination)
+      const data = filterBoardStocks(foundRedisData, pagination)
       return data
     }
 
     const response = await ThirdPartyService.getBoard()
 
-    const data = filterBoardStocks(response.data, pagination)
+    const data = filterBoardStocks(response, pagination)
     const expiredTime = this.getExpiredTime()
     await this.redisHandler.save(code, JSON.stringify(response))
     await this.redisHandler.setExpired(code, expiredTime)
@@ -522,42 +523,62 @@ class StockService {
         return []
       }
 
-      const strongStocks = stocksIndicators?.filter((stock: any) => {
+      const latestStrongStocks = stocksIndicators.map((stock) => {
         const { rsi, macd, mfi, stoch, stochRSI } = stock
-
-        const averageRSI = rsi?.slice(-2).reduce((acc: number, val: number) => acc + val, 0) / 2
-
-        const { macd: macdData = [] } = macd
-        const macdLine = macdData[macdData.length - 1]
-        const signalLine = macd.signal[macd.signal.length - 1]
-
-        const averageMFI = mfi?.slice(-2).reduce((acc: number, val: number) => acc + val, 0) / 2
-
         const { d: stochD, k: stochK } = stoch
+        const { d: stochRSID, k: stochRSIK } = stochRSI
+
         const stochDLine = stochD[stochD.length - 1]
         const stochKLine = stochK[stochK.length - 1]
-
-        const { d: stochRSID, k: stochRSIK } = stochRSI
         const stochRSIDLine = stochRSID[stochRSID.length - 1]
         const stochRSIKLine = stochRSIK[stochRSIK.length - 1]
 
-        const subtractedMACD = macdLine - signalLine
+        return {
+          rsi: rsi[rsi.length - 1],
+          macd: {
+            macd: macd.macd[macd.macd.length - 1],
+            signal: macd.signal[macd.signal.length - 1]
+          },
+          mfi: mfi[mfi.length - 1],
+          stoch: {
+            k: stochKLine,
+            d: stochDLine
+          },
+          stochRSI: {
+            k: stochRSIKLine,
+            d: stochRSIDLine
+          },
+          lastPrice: stock.lastPrice,
+          code: stock.code
+        }
+      })
+
+      const strongStocks = latestStrongStocks?.filter((stock: any) => {
+        const { rsi, macd, mfi, stoch, stochRSI } = stock
+
+        const stochD = stoch.d
+        const stochK = stoch.k
+
+        const stochRSID = stochRSI.d
+        const stochRSIK = stochRSI.k
+
+        const subtractedMACD = macd.macd - macd.signal
 
         return (
           subtractedMACD < (filters?.macd?.[1] ?? 100) &&
           subtractedMACD > (filters?.macd?.[0] ?? 0) &&
-          averageRSI < (filters?.rsi?.[1] ?? 100) &&
-          averageRSI > (filters?.rsi?.[0] ?? 0) &&
-          stochDLine < (filters?.stoch?.[1] ?? 100) &&
-          stochKLine < (filters?.stoch?.[1] ?? 100) &&
-          stochDLine > (filters?.stoch?.[0] ?? 0) &&
-          stochKLine > (filters?.stoch?.[0] ?? 0) &&
-          stochRSIDLine < (filters?.stochRSI?.[1] ?? 100) &&
-          stochRSIKLine < (filters?.stochRSI?.[1] ?? 100) &&
-          stochRSIDLine > (filters?.stochRSI?.[0] ?? 0) &&
-          stochRSIKLine > (filters?.stochRSI?.[0] ?? 0) &&
-          averageMFI < (filters?.mfi?.[1] ?? 100) &&
-          averageMFI > (filters?.mfi?.[0] ?? 0)
+          rsi < (filters?.rsi?.[1] ?? 100) &&
+          rsi > (filters?.rsi?.[0] ?? 0) &&
+          stochD < (filters?.stoch?.[1] ?? 100) &&
+          stochK < (filters?.stoch?.[1] ?? 100) &&
+          stochD > (filters?.stoch?.[0] ?? 0) &&
+          stochK > (filters?.stoch?.[0] ?? 0) &&
+          stochRSID < (filters?.stochRSI?.[1] ?? 100) &&
+          stochRSIK < (filters?.stochRSI?.[1] ?? 100) &&
+          stochRSID > (filters?.stochRSI?.[0] ?? 0) &&
+          stochRSIK > (filters?.stochRSI?.[0] ?? 0) &&
+          mfi < (filters?.mfi?.[1] ?? 100) &&
+          mfi > (filters?.mfi?.[0] ?? 0)
         )
       })
 

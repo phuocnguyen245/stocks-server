@@ -32,10 +32,18 @@ class ThirdPartyService {
           })
         }
       )
-      const data = response.data
+      const data = response.data.data.map((stock: any) => ({
+        symbol: stock.liveboard.Symbol,
+        companyName: stock.CompanyName,
+        close: stock.liveboard.Close,
+        change: stock.liveboard.Change,
+        changePercent: stock.liveboard.ChangePercent
+      }))
+
       const expiredTime = StockService.getExpiredTime()
-      await this.redisHandler.setExpired('board', expiredTime)
+
       await this.redisHandler.save('board', JSON.stringify(data))
+      await this.redisHandler.setExpired('board', expiredTime)
       return data
     } catch (error) {
       throw new Error(error as string)

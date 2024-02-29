@@ -7,8 +7,8 @@ type OrderBy = 'asc' | 'desc'
 interface PagePagination<T> {
   page: number
   size: number
-  sort?: keyof T
-  orderBy?: OrderBy
+  sortBy?: keyof T
+  sortDirection?: OrderBy
   userId: string
   from?: string
   to?: string

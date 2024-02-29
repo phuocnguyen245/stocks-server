@@ -56,7 +56,8 @@ class StocksController {
 
   static getAll = async (req: RequestWithUser, res: Response) => {
     const userId = req.id
-    const { page, size, sort, orderBy, ...rest } = req.query as unknown as PagePagination<Stock>
+    const { page, size, sortBy, sortDirection, ...rest } =
+      req.query as unknown as PagePagination<Stock>
 
     const numberPage = Number(page)
     const numberSize = Number(size)
@@ -65,8 +66,8 @@ class StocksController {
         userId,
         page: numberPage,
         size: numberSize,
-        sort,
-        orderBy
+        sortDirection,
+        sortBy
       },
       rest
     )

@@ -10,7 +10,7 @@ class CurrentStockService {
   static redisHandler = new RedisHandler()
 
   static getCurrentStocks = async (pagination: PagePagination<CurrentStock>) => {
-    const { page, size, sort, orderBy, userId } = pagination
+    const { page, size, sortBy, sortDirection, userId } = pagination
     const redisCode = `update-countdown-${userId}`
     const sortPage = page || 0
     const sortSize = size || 10
@@ -60,7 +60,7 @@ class CurrentStockService {
         },
         {
           $sort: {
-            [`${sort ?? 'createdAt'}`]: orderBy === 'asc' ? 1 : -1
+            [`${sortBy || 'createdAt'}`]: sortDirection === 'asc' ? 1 : -1
           }
         },
         {

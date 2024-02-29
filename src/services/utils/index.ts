@@ -3,7 +3,7 @@ const filterBoardStocks = (
   pagination: { page: number; size: number; search: string }
 ) => {
   const { search, page, size } = pagination
-  const filteredArr = arr.filter((stock) => stock?.liveboard?.Symbol.includes(search.toUpperCase()))
+  const filteredArr = (arr || []).filter((stock) => stock?.symbol.includes(search.toUpperCase()))
   const data = filteredArr.slice(page * size, (page + 1) * size)
   return {
     data,
@@ -18,7 +18,7 @@ function findDuplicateStocks(arr1: any, arr2: string[]): string[] {
   let i = 0
   let j = 0
   while (i < arr1.length && j < arr2.length) {
-    const name1 = arr1[i].liveboard.Symbol
+    const name1 = arr1[i].symbol
     const name2 = arr2[j]
 
     if (name1 === name2) {

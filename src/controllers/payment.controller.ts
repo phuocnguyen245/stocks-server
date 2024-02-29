@@ -16,13 +16,13 @@ const message = {
 
 class PaymentController {
   static getAll = async (req: RequestWithUser, res: Response) => {
-    const { page, size, sort, orderBy } = req.query as unknown as PagePagination<Payments>
+    const { page, size, sortBy, sortDirection } = req.query as unknown as PagePagination<Payments>
     const { id: userId } = req
     const payments = await PaymentService.getAllPayments({
       page,
       size,
-      sort,
-      orderBy,
+      sortBy,
+      sortDirection,
       userId
     })
 
