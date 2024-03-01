@@ -271,9 +271,18 @@ class StockService {
           throw new BadRequest("You don't have enough money to do")
         }
       } else {
-        stock = (await Stocks.create([{ ...body, userId: new Types.ObjectId(userId) }], {
-          session
-        })) as any
+        stock = (await Stocks.create(
+          [
+            {
+              ...body,
+              orderPrice: foundCurrentStock?.averagePrice,
+              userId: new Types.ObjectId(userId)
+            }
+          ],
+          {
+            session
+          }
+        )) as any
       }
 
       if (stock?.length) {
@@ -298,6 +307,7 @@ class StockService {
   static updateStock = async (id: string, body: Stock, userId: string) => {
     const session = await mongoose.startSession()
     session.startTransaction()
+
     try {
       const isBuy = body.status === 'Buy'
 
@@ -318,6 +328,8 @@ class StockService {
             isBuy,
             userId
           )
+          console.log(newBody)
+
           if (newBody) {
             await CurrentStockService.updateCurrentStock(oldStock.code, newBody, userId, session)
 
@@ -330,7 +342,7 @@ class StockService {
             const convertStock = stock?.toObject()
             return convertStock
           }
-          throw new BadRequest('This stock is not available')
+          throw new BadRequest('This current stock is not available')
         }
 
         throw new BadRequest("You don't have enough money to do")

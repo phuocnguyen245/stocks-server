@@ -5,6 +5,7 @@ import { Stock, type CurrentStock, PagePagination } from '../types/types.js'
 import { convertToDecimal } from '../utils/index.ts'
 import StockService from './stocks.service.ts'
 import RedisHandler from '../config/redis.ts'
+import { Stocks } from '../models/stock.model.ts'
 
 class CurrentStockService {
   static redisHandler = new RedisHandler()
@@ -273,9 +274,15 @@ class CurrentStockService {
 
     const marketPrice = await StockService.getEndOfDayPrice(stock.code)
     if (!foundCurrentStock) {
-      // if (!isBuy) {
-      //   throw new BadRequest('This stock is not available')
-      // }
+      if (!isBuy) {
+        return await Stocks.findByIdAndUpdate(
+          new Types.ObjectId(stock._id),
+          {
+            isDeleted: true
+          },
+          { session }
+        )
+      }
       const marketPrice = await StockService.getEndOfDayPrice(stock.code)
       return await this.createCurrentStock(
         {
@@ -292,7 +299,10 @@ class CurrentStockService {
     }
     if (!isBuy) {
       const newVolume = stock.volume + foundCurrentStock.volume
-      const averagePrice = foundCurrentStock.averagePrice
+      const averagePrice =
+        (foundCurrentStock.averagePrice * foundCurrentStock.volume +
+          stock.volume * stock.orderPrice) /
+        newVolume
       return await this.updateCurrentStock(
         stock.code,
         {
