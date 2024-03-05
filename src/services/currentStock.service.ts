@@ -37,6 +37,9 @@ class CurrentStockService {
       await this.redisHandler.save(redisCode, true)
     }
 
+    const order = sortDirection || 'desc'
+    console.log(sortBy, order === 'asc' ? 1 : -1)
+
     const [data, totalItems] = await Promise.all([
       CurrentStocks.aggregate([
         {
@@ -61,7 +64,7 @@ class CurrentStockService {
         },
         {
           $sort: {
-            [`${sortBy || 'createdAt'}`]: sortDirection === 'asc' ? 1 : -1
+            [`${sortBy || 'averagePrice'}`]: order === 'asc' ? 1 : -1
           }
         },
         {
@@ -74,7 +77,11 @@ class CurrentStockService {
       CurrentStocks.count({ userId: new Types.ObjectId(userId) })
     ])
 
-    const sortArr = data.sort((a, b) => b.volume * b.averagePrice - a.volume * a.averagePrice)
+    let resultData = data
+
+    if (!sortBy) {
+      resultData = data.sort((a, b) => b.volume * b.averagePrice - a.volume * a.averagePrice)
+    }
 
     const codes = data.map((item) => item.code)
     await this.redisHandler.save(`current-${userId}`, codes)
@@ -83,7 +90,7 @@ class CurrentStockService {
     await this.redisHandler.setExpired(redisCode, expiredTime)
 
     return {
-      data: sortArr,
+      data: resultData,
       page: sortPage,
       size: sortSize,
       totalItems
