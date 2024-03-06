@@ -13,6 +13,10 @@ const CurrentStockSchema = new Schema<CurrentStock>(
       type: String,
       required: true
     },
+    sector: {
+      type: String,
+      required: true
+    },
     averagePrice: {
       type: Number,
       required: true

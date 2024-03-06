@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import type { Stock, Target } from '../types/types.js'
+import type { Stock } from '../types/types.js'
 const { Schema } = mongoose
 
 const NAME = {
@@ -19,6 +19,10 @@ const StockSchema = new Schema<Stock>(
       type: String,
       enum: ['Buy', 'Sell'],
       default: 'Buy',
+      required: true
+    },
+    sector: {
+      type: String,
       required: true
     },
     ratio: {

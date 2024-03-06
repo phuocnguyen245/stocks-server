@@ -25,7 +25,8 @@ class StocksController {
       status: 'Buy',
       userId: new Types.ObjectId('657ec8a90ac6d9841f7c55cd'),
       stop: [],
-      take: []
+      take: [],
+      sector: ''
     }
 
     if (currentStock) {
@@ -33,7 +34,7 @@ class StocksController {
     }
 
     ;((Object.keys(body) as Array<keyof Stock>) || [])?.forEach((item: keyof Stock) => {
-      if (item === 'code' || item === 'date' || item === 'status') {
+      if (item === 'code' || item === 'date' || item === 'status' || item === 'sector') {
         return (data = { ...data, [item]: body[item] ?? '' })
       } else if (item === 'userId') {
         return (data = {

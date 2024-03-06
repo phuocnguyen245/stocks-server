@@ -244,6 +244,7 @@ class StockService {
   static createStock = async (body: Stock, userId: string) => {
     const session = await mongoose.startSession()
     session.startTransaction()
+
     try {
       const isBuy = body.status === 'Buy'
       const endOfDayPrice = await this.getEndOfDayPrice(body.code)
@@ -284,6 +285,7 @@ class StockService {
           }
         )) as any
       }
+      console.log(stock)
 
       if (stock?.length) {
         await CurrentStockService.convertBodyToCreate(

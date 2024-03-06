@@ -38,7 +38,6 @@ class CurrentStockService {
     }
 
     const order = sortDirection || 'desc'
-    console.log(sortBy, order === 'asc' ? 1 : -1)
 
     const [data, totalItems] = await Promise.all([
       CurrentStocks.aggregate([
@@ -146,7 +145,9 @@ class CurrentStockService {
     userId: string,
     session?: mongoose.mongo.ClientSession
   ) => {
-    const { code, orderPrice, volume } = stock
+    const { code, orderPrice, volume, sector } = stock
+    console.log(stock)
+
     let newVolume = 0
     let newAveragePrice = 0
 
@@ -182,6 +183,7 @@ class CurrentStockService {
         volume: newVolume,
         ratio,
         marketPrice: foundCurrentStock.marketPrice,
+        sector: foundCurrentStock.sector,
         investedValue
       }
       const updatedStock = await CurrentStockService.updateCurrentStock(
@@ -205,7 +207,8 @@ class CurrentStockService {
       marketPrice: endOfDayPrice,
       volume,
       ratio: (endOfDayPrice - orderPrice) / orderPrice,
-      investedValue: convertToDecimal((endOfDayPrice - orderPrice) * volume, 3)
+      investedValue: convertToDecimal((endOfDayPrice - orderPrice) * volume, 3),
+      sector
     }
 
     const createdStock = await CurrentStockService.createCurrentStock(currentStock, userId, session)
@@ -294,6 +297,7 @@ class CurrentStockService {
       return await this.createCurrentStock(
         {
           averagePrice: stock.orderPrice,
+          sector: stock.sector,
           code: stock.code,
           marketPrice,
           volume: stock.volume,
@@ -314,6 +318,7 @@ class CurrentStockService {
         stock.code,
         {
           volume: newVolume,
+          sector: foundCurrentStock.sector,
           code: stock.code,
           averagePrice,
           marketPrice: foundCurrentStock.marketPrice,
@@ -348,6 +353,7 @@ class CurrentStockService {
       stock.code,
       {
         code: stock.code,
+        sector: stock.sector,
         averagePrice,
         volume: newVolume,
         marketPrice: foundCurrentStock.marketPrice,
@@ -372,7 +378,8 @@ class CurrentStockService {
       volume: foundCurrentStock.volume,
       investedValue: convertToDecimal(
         (marketPrice - foundCurrentStock.averagePrice) * foundCurrentStock.volume
-      )
+      ),
+      sector: foundCurrentStock.sector
     }
     const updatedStock = await this.updateCurrentStock(code, newBody, userId)
     return updatedStock

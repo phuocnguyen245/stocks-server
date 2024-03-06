@@ -37,7 +37,8 @@ class ThirdPartyService {
         companyName: stock.CompanyName,
         close: stock.liveboard.Close,
         change: stock.liveboard.Change,
-        changePercent: stock.liveboard.ChangePercent
+        changePercent: stock.liveboard.ChangePercent,
+        sector: stock.SubSectorID
       }))
 
       const expiredTime = StockService.getExpiredTime()

@@ -41,6 +41,7 @@ interface Stock {
   status: Status
   userId?: Types.ObjectId
   isDeleted?: boolean
+  sector: string
 }
 
 interface StockWithUserId extends Stock {
@@ -56,6 +57,7 @@ interface CurrentStock {
   investedValue?: number
   userId?: Types.ObjectId
   stocks?: any[]
+  sector: string
 }
 type PaymentType = 0 | 1
 interface Payments {
