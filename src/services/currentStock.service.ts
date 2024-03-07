@@ -2,10 +2,11 @@ import mongoose, { Types } from 'mongoose'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CurrentStocks } from '../models/currentStock.model.ts'
 import { Stock, type CurrentStock, PagePagination } from '../types/types.js'
-import { convertToDecimal } from '../utils/index.ts'
+import { convertToDecimal, countDays } from '../utils/index.ts'
 import StockService from './stocks.service.ts'
 import RedisHandler from '../config/redis.ts'
 import { Stocks } from '../models/stock.model.ts'
+import { log } from 'node:console'
 
 class CurrentStockService {
   static redisHandler = new RedisHandler()
@@ -82,6 +83,22 @@ class CurrentStockService {
       resultData = data.sort((a, b) => b.volume * b.averagePrice - a.volume * a.averagePrice)
     }
 
+    const formatResult = resultData.map((item) => {
+      let volume = 0
+      const unAvailableStock: any = []
+      item.stocks.forEach((stock: any) => {
+        if (countDays(stock.date) >= 2.5) {
+          volume += stock.volume
+        } else {
+          unAvailableStock.push(stock)
+        }
+      })
+      return {
+        ...item,
+        availableStocks: [{ ...item, availableVolume: volume }, ...unAvailableStock]
+      }
+    })
+
     const codes = data.map((item) => item.code)
     await this.redisHandler.save(`current-${userId}`, codes)
 
@@ -89,7 +106,7 @@ class CurrentStockService {
     await this.redisHandler.setExpired(redisCode, expiredTime)
 
     return {
-      data: resultData,
+      data: formatResult,
       page: sortPage,
       size: sortSize,
       totalItems
@@ -146,7 +163,6 @@ class CurrentStockService {
     session?: mongoose.mongo.ClientSession
   ) => {
     const { code, orderPrice, volume, sector } = stock
-    console.log(stock)
 
     let newVolume = 0
     let newAveragePrice = 0
