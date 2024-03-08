@@ -83,19 +83,16 @@ class CurrentStockService {
       resultData = data.sort((a, b) => b.volume * b.averagePrice - a.volume * a.averagePrice)
     }
 
-    const formatResult = resultData.map((item) => {
-      let volume = 0
-      const unAvailableStock: any = []
-      item.stocks.forEach((stock: any) => {
-        if (countDays(stock.date) >= 2.5) {
-          volume += stock.volume
-        } else {
-          unAvailableStock.push(stock)
-        }
+    const formatResult = resultData.map((item: Stock) => {
+      const stocks = item.stocks?.filter((stock: Stock) => {
+        return countDays(stock.date) < 2.5
       })
+      const unavailableVol = stocks?.reduce((acc: number, stock: Stock) => acc + stock.volume, 0)
       return {
         ...item,
-        availableStocks: [{ ...item, availableVolume: volume }, ...unAvailableStock]
+        unavailableVol,
+        availableVol: item.volume - (unavailableVol ?? 0),
+        stocks
       }
     })
 

@@ -42,6 +42,7 @@ interface Stock {
   userId?: Types.ObjectId
   isDeleted?: boolean
   sector: string
+  stocks?: Stock[]
 }
 
 interface StockWithUserId extends Stock {
