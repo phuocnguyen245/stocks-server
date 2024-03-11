@@ -14,6 +14,11 @@ const StockSchema = new Schema<Stock>(
     volume: Number,
     orderPrice: Number,
     marketPrice: Number,
+    averagePrice: {
+      type: Number,
+      default: 0,
+      required: true
+    },
     sellPrice: Number,
     status: {
       type: String,

@@ -108,7 +108,7 @@ class StockService {
   }
 
   static getFireAntWatchList = async () => {
-    const redisCode = 'fa-watch-lists'
+    const redisCode = 'watch-lists'
     const foundWatchList = await this.redisHandler.get(redisCode)
     if (foundWatchList) {
       return foundWatchList
@@ -263,7 +263,14 @@ class StockService {
       if (isBuy && endOfDayPrice > 0) {
         if (await this.checkBalanceBuy(body.orderPrice * body.volume, userId)) {
           stock = (await Stocks.create(
-            [{ ...body, userId: new Types.ObjectId(userId), marketPrice: endOfDayPrice }],
+            [
+              {
+                ...body,
+                userId: new Types.ObjectId(userId),
+                marketPrice: endOfDayPrice,
+                averagePrice: foundCurrentStock?.averagePrice || 0
+              }
+            ],
             {
               session
             }
@@ -277,6 +284,7 @@ class StockService {
             {
               ...body,
               orderPrice: foundCurrentStock?.averagePrice,
+              averagePrice: foundCurrentStock?.averagePrice || 0,
               userId: new Types.ObjectId(userId)
             }
           ],
@@ -285,7 +293,6 @@ class StockService {
           }
         )) as any
       }
-      console.log(stock)
 
       if (stock?.length) {
         await CurrentStockService.convertBodyToCreate(
@@ -330,14 +337,18 @@ class StockService {
             isBuy,
             userId
           )
-          console.log(newBody)
 
           if (newBody) {
-            await CurrentStockService.updateCurrentStock(oldStock.code, newBody, userId, session)
+            const currentStocks = await CurrentStockService.updateCurrentStock(
+              oldStock.code,
+              newBody,
+              userId,
+              session
+            )
 
             const stock = await Stocks.findByIdAndUpdate(
               new Types.ObjectId(id),
-              { ...rest },
+              { ...rest, averagePrice: currentStocks?.averagePrice || 0 },
               { new: true, session }
             )
             await session?.commitTransaction()

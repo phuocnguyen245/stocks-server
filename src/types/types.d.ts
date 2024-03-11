@@ -33,6 +33,7 @@ interface Stock {
   date: string
   volume: number
   orderPrice: number
+  averagePrice?: number
   sellPrice: number
   marketPrice?: number
   take: Array<Target>
