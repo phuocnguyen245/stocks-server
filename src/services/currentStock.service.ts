@@ -6,7 +6,6 @@ import { convertToDecimal, countDays } from '../utils/index.ts'
 import StockService from './stocks.service.ts'
 import RedisHandler from '../config/redis.ts'
 import { Stocks } from '../models/stock.model.ts'
-import { log } from 'node:console'
 
 class CurrentStockService {
   static redisHandler = new RedisHandler()
@@ -380,6 +379,7 @@ class CurrentStockService {
 
   static updateCurrentStockByDay = async (code: string, marketPrice: number, userId: string) => {
     const foundCurrentStock = await this.getCurrentStockByCode(code, userId)
+
     if (!foundCurrentStock) {
       throw new NotFound('Stock not found')
     }
