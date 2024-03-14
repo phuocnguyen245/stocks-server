@@ -21,18 +21,20 @@ class CurrentStockService {
     if (!isHaveCurrentStock) {
       const currentStock = (await this.redisHandler.get(`current-${userId}`)) as string[]
 
-      if (currentStock && currentStock?.length) {
+      if (currentStock?.length) {
         const stockPromises = currentStock.map(async (stock: string) => {
           const price = await StockService.getEndOfDayPrice(stock)
           return { [stock]: price }
         })
         const resolvedStockPromises = await Promise.all(stockPromises)
-        const data = resolvedStockPromises.reduce((acc, cur) => ({ ...acc, ...cur }), {})
+        if (resolvedStockPromises.length) {
+          const data = resolvedStockPromises.reduce((acc, cur) => ({ ...acc, ...cur }), {})
 
-        const updateStockPromises = currentStock.map(async (stock: string) => {
-          return await this.updateCurrentStockByDay(stock, data[stock], userId)
-        })
-        await Promise.all(updateStockPromises)
+          const updateStockPromises = currentStock.map(async (stock: string) => {
+            return await this.updateCurrentStockByDay(stock, data[stock], userId)
+          })
+          await Promise.all(updateStockPromises)
+        }
       }
       await this.redisHandler.save(redisCode, true)
     }
@@ -96,6 +98,7 @@ class CurrentStockService {
     })
 
     const codes = data.map((item) => item.code)
+
     await this.redisHandler.save(`current-${userId}`, codes)
 
     const expiredTime = StockService.getExpiredTime()
