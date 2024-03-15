@@ -107,6 +107,11 @@ interface WatchList {
   attributes: WatchListItem[]
 }
 
+interface Chart {
+  name: string
+  y: string | number
+}
+
 export type {
   User,
   Stock,
@@ -121,5 +126,6 @@ export type {
   StockWithUserId,
   Target,
   RecommendedFilter,
-  WatchList
+  WatchList,
+  Chart
 }

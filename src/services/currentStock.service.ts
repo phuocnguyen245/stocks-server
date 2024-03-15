@@ -88,6 +88,7 @@ class CurrentStockService {
       const stocks = item.stocks?.filter((stock: Stock) => {
         return countDays(stock.date) < 2.5
       })
+
       const unavailableVol = stocks?.reduce((acc: number, stock: Stock) => acc + stock.volume, 0)
       return {
         ...item,
