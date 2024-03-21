@@ -29,7 +29,6 @@ class CurrentStockService {
         const resolvedStockPromises = await Promise.all(stockPromises)
         if (resolvedStockPromises.length) {
           const data = resolvedStockPromises.reduce((acc, cur) => ({ ...acc, ...cur }), {})
-
           const updateStockPromises = currentStock.map(async (stock: string) => {
             return await this.updateCurrentStockByDay(stock, data[stock], userId)
           })
@@ -330,6 +329,7 @@ class CurrentStockService {
         (foundCurrentStock.averagePrice * foundCurrentStock.volume +
           stock.volume * stock.orderPrice) /
         newVolume
+
       return await this.updateCurrentStock(
         stock.code,
         {
@@ -347,11 +347,7 @@ class CurrentStockService {
     }
     const newVolume = foundCurrentStock.volume - stock.volume
 
-    if (newVolume < 0) {
-      throw Error(`This stock is out of range`)
-    }
-
-    if (newVolume === 0) {
+    if (newVolume <= 0) {
       return this.removeCurrentStock(stock.code, userId, session)
     }
 
@@ -360,6 +356,7 @@ class CurrentStockService {
         stock.volume * stock.orderPrice) /
         newVolume
     )
+
     const ratio = (foundCurrentStock.marketPrice - averagePrice) / averagePrice
     const investedValue = convertToDecimal(
       (foundCurrentStock.marketPrice - averagePrice) * newVolume

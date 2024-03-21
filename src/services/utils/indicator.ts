@@ -62,7 +62,6 @@ class Indicator {
       let positiveFlow = 0
       let negativeFlow = 0
 
-      // Tính toán dòng tiền cho mỗi phiên giao dịch
       for (let j = i - period + 1; j <= i; j++) {
         const typicalPrice = (highPrices[j] + lowPrices[j] + closePrices[j]) / 3
         const moneyFlow = typicalPrice * volumes[j]

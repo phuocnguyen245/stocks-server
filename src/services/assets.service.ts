@@ -37,6 +37,7 @@ class AssetsService {
       ),
       investedValue
     )
+
     return {
       topUp,
       order,
@@ -45,9 +46,10 @@ class AssetsService {
       cash: topUp + sell - order,
       marketValue,
       investedValue,
-      profitOrLost: ((sell - order + marketValue) / (topUp ?? 1)) * 100,
       net: topUp + sell - order + marketValue,
-      ratePortfolio: ((marketValue - investedValue) / investedValue) * 100,
+      profitOrLoss: marketValue - investedValue,
+      rateAsset: (sell - order + marketValue) / (topUp ?? 1),
+      ratePortfolio: (marketValue - investedValue) / investedValue,
       sectorsPercentage,
       stocksPercentage
     }

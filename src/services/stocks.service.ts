@@ -67,10 +67,7 @@ class StockService {
 
   static getBalance = async (userId: string) => {
     const assets = await AssetsService.getAsset(userId)
-    const paymentBalance = assets.topUp / 1000
-    const stocksBalance = assets.sell - assets.order + assets.waiting
-    const totalBalance = paymentBalance + stocksBalance
-    return totalBalance
+    return assets.cash
   }
 
   static checkBalanceBuy = async (balance: number, userId: string) => {
@@ -83,11 +80,7 @@ class StockService {
 
   static checkBalanceUpdate = async (oldBalance: number, balance: number, userId: string) => {
     const totalBalance = await this.getBalance(userId)
-
-    if (totalBalance + oldBalance >= balance) {
-      return true
-    }
-    return false
+    return totalBalance + oldBalance >= balance
   }
 
   static getExpiredTime = (hour = 15) => {
@@ -261,23 +254,23 @@ class StockService {
       }
 
       if (isBuy && endOfDayPrice > 0) {
-        if (await this.checkBalanceBuy(body.orderPrice * body.volume, userId)) {
-          stock = (await Stocks.create(
-            [
-              {
-                ...body,
-                userId: new Types.ObjectId(userId),
-                marketPrice: endOfDayPrice,
-                averagePrice: foundCurrentStock?.averagePrice || 0
-              }
-            ],
+        // if (await this.checkBalanceBuy(body.orderPrice * body.volume, userId)) {
+        stock = (await Stocks.create(
+          [
             {
-              session
+              ...body,
+              userId: new Types.ObjectId(userId),
+              marketPrice: endOfDayPrice,
+              averagePrice: foundCurrentStock?.averagePrice || 0
             }
-          )) as any
-        } else {
-          throw new BadRequest("You don't have enough money to do")
-        }
+          ],
+          {
+            session
+          }
+        )) as any
+        // } else {
+        //   throw new BadRequest("You don't have enough money to do")
+        // }
       } else {
         stock = (await Stocks.create(
           [
@@ -307,9 +300,8 @@ class StockService {
       return stock
     } catch (error: any) {
       await session.abortTransaction()
+      await session.endSession()
       throw new BadRequest(error.message)
-    } finally {
-      session.endSession()
     }
   }
 
@@ -363,9 +355,8 @@ class StockService {
       return null
     } catch (error: any) {
       await session.abortTransaction()
+      await session.endSession()
       throw new BadRequest(error)
-    } finally {
-      session.endSession()
     }
   }
 
@@ -374,7 +365,6 @@ class StockService {
     session.startTransaction()
     try {
       await CurrentStockService.updateRemoveStock(foundStock, userId, session)
-
       const data = await Stocks.findByIdAndUpdate(
         new Types.ObjectId(id),
         {
@@ -386,10 +376,9 @@ class StockService {
       await session.commitTransaction()
       return data
     } catch (error: any) {
-      session.abortTransaction()
+      await session.abortTransaction()
+      await session.endSession()
       throw new BadRequest(error.message)
-    } finally {
-      session.endSession()
     }
   }
 
@@ -445,8 +434,8 @@ class StockService {
       }
     })
 
-    sell = (sell * (100 - 0.25)) / 100
-    waiting = (waiting * (100 - 0.25)) / 100
+    sell = sell * 0.9975
+    waiting = waiting * 0.9975
     return { order, sell, waiting }
   }
 
