@@ -1,5 +1,5 @@
 import { CREATED, OK } from '../core/success.response'
-import WatchListService from '../services/watchlist.service'
+import WatchListService from '../services/v1Mongoose/watchlist.service'
 import { RequestWithUser } from '../types/types'
 import { Response } from 'express'
 

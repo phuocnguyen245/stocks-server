@@ -1,8 +1,8 @@
 import { Types } from 'mongoose'
-import { WatchList } from '../models/watchlist.model'
-import RedisHandler from '../config/redis'
+import { WatchList } from '../../models/watchlist.model'
+import RedisHandler from '../../config/redis'
 import ThirdPartyService from './thirdParty.service'
-import { findDuplicateStocks } from './utils'
+import { findDuplicateStocks } from '../utils'
 import StockService from './stocks.service'
 
 class WatchListService {

@@ -1,11 +1,11 @@
 import mongoose, { Types } from 'mongoose'
-import { BadRequest, NotFound } from '../core/error.response.ts'
-import { CurrentStocks } from '../models/currentStock.model.ts'
-import { Stock, type CurrentStock, PagePagination } from '../types/types.js'
-import { convertToDecimal, countDays } from '../utils/index.ts'
+import { BadRequest, NotFound } from '../../core/error.response.ts'
+import { CurrentStocks } from '../../models/currentStock.model.ts'
+import { Stock, type CurrentStock, PagePagination } from '../../types/types.js'
+import { convertToDecimal, countDays } from '../../utils/index.ts'
 import StockService from './stocks.service.ts'
-import RedisHandler from '../config/redis.ts'
-import { Stocks } from '../models/stock.model.ts'
+import RedisHandler from '../../config/redis.ts'
+import { Stocks } from '../../models/stock.model.ts'
 
 class CurrentStockService {
   static redisHandler = new RedisHandler()
@@ -29,8 +29,8 @@ class CurrentStockService {
         const resolvedStockPromises = await Promise.all(stockPromises)
         if (resolvedStockPromises.length) {
           const data = resolvedStockPromises.reduce((acc, cur) => ({ ...acc, ...cur }), {})
-          const updateStockPromises = currentStock.map(async (stock: string) => {
-            return await this.updateCurrentStockByDay(stock, data[stock], userId)
+          const updateStockPromises = currentStock.map((stock: string) => {
+            return this.updateCurrentStockByDay(stock, data[stock], userId)
           })
           await Promise.all(updateStockPromises)
         }
@@ -381,9 +381,7 @@ class CurrentStockService {
   static updateCurrentStockByDay = async (code: string, marketPrice: number, userId: string) => {
     const foundCurrentStock = await this.getCurrentStockByCode(code, userId)
 
-    if (!foundCurrentStock) {
-      throw new NotFound('Stock not found')
-    }
+    if (!foundCurrentStock) return
     const newBody: CurrentStock = {
       code,
       marketPrice,
@@ -395,8 +393,7 @@ class CurrentStockService {
       ),
       sector: foundCurrentStock.sector
     }
-    const updatedStock = await this.updateCurrentStock(code, newBody, userId)
-    return updatedStock
+    return this.updateCurrentStock(code, newBody, userId)
   }
 }
 

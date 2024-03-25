@@ -1,9 +1,9 @@
 import { Types } from 'mongoose'
-import { Users } from '../models/user.model.ts'
-import { User } from '../types/types.js'
-import { BadRequest, NotFound } from '../core/error.response.ts'
+import { Users } from '../../models/user.model.ts'
+import { User } from '../../types/types.js'
+import { BadRequest, NotFound } from '../../core/error.response.ts'
 import { createHash } from 'node:crypto'
-import AuthMiddleware from '../middleware/auth.middleware.ts'
+import AuthMiddleware from '../../middleware/auth.middleware.ts'
 import nodemailer from 'nodemailer'
 
 const transporter = nodemailer.createTransport({

@@ -1,6 +1,6 @@
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
-import UserService from '../services/user.service.ts'
+import UserService from '../services/v1Mongoose/user.service.ts'
 import { Request, Response } from 'express'
 import { RequestWithUser } from '../types/types.js'
 import AuthMiddleware from '../middleware/auth.middleware.ts'

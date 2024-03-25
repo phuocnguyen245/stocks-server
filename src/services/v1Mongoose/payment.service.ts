@@ -1,6 +1,6 @@
 import { FilterQuery, Types } from 'mongoose'
-import { Payments } from '../models/payment.model.ts'
-import type { PagePagination, Payments as PaymentsType } from '../types/types.js'
+import { Payments } from '../../models/payment.model.ts'
+import type { PagePagination, Payments as PaymentsType } from '../../types/types.js'
 
 class PaymentService {
   static getAllPayments = async (

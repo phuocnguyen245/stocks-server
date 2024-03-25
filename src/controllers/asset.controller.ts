@@ -1,6 +1,6 @@
 import { Response } from 'express'
 import { OK } from '../core/success.response.ts'
-import AssetsService from '../services/assets.service.ts'
+import AssetsService from '../services/v1Mongoose/assets.service.ts'
 import { RequestWithUser } from '../types/types.js'
 
 class AssetController {

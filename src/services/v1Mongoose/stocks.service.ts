@@ -2,57 +2,19 @@ import axios from 'axios'
 import moment from 'moment'
 import mongoose, { FilterQuery, Types } from 'mongoose'
 import cron from 'node-cron'
-import RedisHandler from '../config/redis.ts'
-import { BadRequest } from '../core/error.response.ts'
-import type { PagePagination, RecommendedFilter, Stock } from '../types/types.js'
-import { countDays, dateStringToNumber } from '../utils/index.ts'
+import RedisHandler from '../../config/redis.ts'
+import { BadRequest } from '../../core/error.response.ts'
+import type { PagePagination, RecommendedFilter, Stock } from '../../types/types.js'
+import { countDays, dateStringToNumber } from '../../utils/index.ts'
 import AssetsService from './assets.service.ts'
 import ThirdPartyService from './thirdParty.service.ts'
-import { filterBoardStocks, findDuplicateStocks } from './utils/index.ts'
-import Indicator from './utils/indicator.ts'
+import { filterBoardStocks, findDuplicateStocks } from '../utils/index.ts'
+import Indicator from '../utils/indicator.ts'
 import CurrentStockService from './currentStock.service.ts'
 
-import { Stocks } from '../models/stock.model.ts'
-import { CurrentStocks } from '../models/currentStock.model.ts'
+import { Stocks } from '../../models/stock.model.ts'
+import { CurrentStocks } from '../../models/currentStock.model.ts'
 
-const addTest = async () => {
-  await Stocks.create([
-    {
-      code: 'PDR',
-      date: '2024-02-27T07:57:34.786Z',
-      orderPrice: '28',
-      status: 'Buy',
-      volume: 10000,
-      userId: '65d5bf2835583118d16a88ec'
-    },
-    {
-      code: 'PDR',
-      date: '2024-02-27T07:57:34.786Z',
-      orderPrice: '30',
-      status: 'Buy',
-      volume: 10000,
-      userId: '65d5bf2835583118d16a88ec'
-    },
-    {
-      code: 'PDR',
-      date: '2024-02-27T07:57:34.786Z',
-      sellPrice: '28',
-      status: 'Sell',
-      volume: 3000,
-      userId: '65d5bf2835583118d16a88ec'
-    }
-  ])
-  await CurrentStocks.create({
-    code: 'PDR',
-    volume: 17000,
-    ratio: 1,
-    investedValue: 1000,
-    marketPrice: 30,
-    averagePrice: 29,
-    userId: '65d5bf2835583118d16a88ec'
-  })
-}
-// addTest()
 interface EndOfDayStock {
   date: string
   priceOpen: number
@@ -434,8 +396,6 @@ class StockService {
       }
     })
 
-    sell = sell * 0.9975
-    waiting = waiting * 0.9975
     return { order, sell, waiting }
   }
 
@@ -605,8 +565,8 @@ class StockService {
     }
   }
 
-  static getRefreshTime = () => {
-    const redis = this.redisHandler.get('refresh-code')
+  static getRefreshTime = async () => {
+    const redis = await this.redisHandler.get('refresh-code')
     if (redis) {
       return redis
     }

@@ -1,6 +1,6 @@
 import axios from 'axios'
 import https from 'https'
-import RedisHandler from '../config/redis'
+import RedisHandler from '../../config/redis'
 import StockService from './stocks.service'
 
 class ThirdPartyService {

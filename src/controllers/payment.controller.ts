@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CREATED, OK, UPDATED } from '../core/success.response.ts'
-import PaymentService from '../services/payment.service.ts'
+import PaymentService from '../services/v1Mongoose/payment.service.ts'
 import { PagePagination, Payments, RequestWithUser } from '../types/types.js'
 
 const message = {

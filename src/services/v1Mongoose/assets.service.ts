@@ -1,10 +1,9 @@
 import { Types } from 'mongoose'
-import { CurrentStocks } from '../models/currentStock.model.ts'
-import { Chart, CurrentStock } from '../types/types'
+import { CurrentStocks } from '../../models/currentStock.model.ts'
+import { Chart, CurrentStock } from '../../types/types'
 import PaymentService from './payment.service.ts'
 import StockService from './stocks.service.ts'
 
-type GroupedData = { [name: string]: number }
 class AssetsService {
   static getAsset = async (userId: string) => {
     const topUp = (await PaymentService.getBalance(userId)) / 1000
@@ -43,12 +42,13 @@ class AssetsService {
       order,
       sell,
       waiting,
-      cash: topUp + sell - order,
+      cash: topUp + sell * ((100 + 0.25) / 100) - order * ((100 + 0.35) / 100),
       marketValue,
       investedValue,
-      net: topUp + sell - order + marketValue,
+      net: topUp + sell * ((100 - 0.25) / 100) - order * ((100 - 0.35) / 100) + marketValue,
       profitOrLoss: marketValue - investedValue,
-      rateAsset: (sell - order + marketValue) / (topUp ?? 1),
+      rateAsset:
+        (sell * ((100 + 0.25) / 100) - order * ((100 - 0.35) / 100) + marketValue) / (topUp ?? 1),
       ratePortfolio: (marketValue - investedValue) / investedValue,
       sectorsPercentage,
       stocksPercentage

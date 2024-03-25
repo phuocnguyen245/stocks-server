@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import CurrentStockService from '../services/currentStock.service.ts'
+import CurrentStockService from '../services/v1Mongoose/currentStock.service.ts'
 import { DELETED, OK } from '../core/success.response.ts'
 import { CurrentStock, PagePagination, RequestWithUser } from '../types/types.js'
 

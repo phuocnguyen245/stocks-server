@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from 'express'
 import { Types } from 'mongoose'
 import { BadRequest, NotFound } from '../core/error.response.ts'
 import { CREATED, DELETED, OK, UPDATED } from '../core/success.response.ts'
-import StockService from '../services/stocks.service.ts'
+import StockService from '../services/v1Mongoose/stocks.service.ts'
 import { PagePagination, RecommendedFilter, RequestWithUser, Stock } from '../types/types.js'
 const message = {
   NOTFOUND: "Stock or Current Stock wasn't found",
